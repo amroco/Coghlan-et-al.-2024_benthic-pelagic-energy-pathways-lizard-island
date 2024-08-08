@@ -1427,7 +1427,7 @@ These data form part of a PhD. Some chapters are still pending publication. For 
 library(tidyverse)
 
 # SPECIES
-load("rTP_mcc.Rdata")
+load("rTP_mcc.Rdata") # Dataset created in previous sections
 glimpse(rTP_mcc)
 names(rTP_mcc)[1] = "Region"
 names(rTP_mcc)[2] = "Species"
@@ -1477,7 +1477,7 @@ names(rTP_mcc_fam)[9] = "PCI_median_fam"
 names(rTP_mcc_fam)[10] = "PCI_mode_fam"
 
 # Bring the herbivores back in, by adding these traits back to the RLS fish list.
-load("siadat.Rdata")
+load("Coghlan-et-al_2024-Energy-Pathways_Lizard-Island_FISH-AND-BASELINE-DATA.Rdata")
 glimpse(siadat)
 
 siadat = 
@@ -2010,7 +2010,7 @@ These data form part of a PhD. Some chapters are still pending publication. For 
 ```{r, eval=TRUE, warning=FALSE, include=T, message=FALSE, echo=T}
 library(tidyverse)
 library(fishualize)
-load("rTP_all_liz.Rdata")
+load("rTP_all_liz.Rdata") # made in previous section
 
 fish_dat = rTP_all_liz
 
@@ -2234,8 +2234,6 @@ rTP_mcc_gen = subset(rTP_mcc_gen, select = -Region)
 load('rTP_mcc_fam.Rdata')
 # rTP_mcc_fam = TP_pel_family
 names(rTP_mcc_fam)
-# rTP_mcc_fam = subset(rTP_mcc_fam, select = -model)
-# rTP_mcc_fam = subset(rTP_mcc_fam, select = -combined)
 names(rTP_mcc_fam)[1] = "Region"
 names(rTP_mcc_fam)[2] = "family"
 names(rTP_mcc_fam)[3] = "TP_lower_fam"
@@ -2308,7 +2306,7 @@ glimpse(RLS_sia)
 
 
 # Create new column, prioritising species values.
-# We want to prioritise species, so we will create and fill the column with this first
+# We want to prioritise species level results, so we will create and fill the column with this first
 # record source
 RLS_sia$source=ifelse(is.na(RLS_sia$TP), NA, 'Species level')
 RLS_sia2 = RLS_sia %>% filter(!is.na(source))
@@ -2376,7 +2374,7 @@ RLS_higher_sig = rbind(RLS_sia2,genus_lev2,family_lev2,no_dat)
 colSums(is.na(RLS_higher_sig))
 
 
-# Check where an error in the left_join is coming from
+
 # Using dplyr to find duplicate values
 duplicates <- RLS_higher_sig |>
   group_by_all() |>
@@ -2405,7 +2403,7 @@ save(RLS_higher_sig, file = "RLS_higher_sig.Rdata")
 library(tidyverse)
 # INPUT:
 load("RLS_traits_all.Rdata")
-load("RLS_higher_sig.Rdata")
+load("RLS_higher_sig.Rdata") # Made in previous section
 
 traits = RLS_traits_all
 glimpse(traits)
@@ -2446,7 +2444,7 @@ traits = subset(traits, select = -c(Family,
                                     cf
                                     ))
 
-# Combine our SIA values with the trait information
+# Combine our SIA values with the trait information (this forms another paper)
 RLS_pathway = left_join(RLS_higher_sig, traits, by = "Species")
 
 
@@ -2459,7 +2457,7 @@ save(RLS_traits, file = "RLS_traits.Rdata")
 
 
 # Let's see what is a herbivore
-check = RLS_pathway %>%filter(trophic_guild == "Primary_consumer")
+check = RLS_pathway %>%filter(trophic_guild == "Herbivore")
 unique(sort(check$Genus))
 
 
@@ -2491,7 +2489,7 @@ check
 
 
 
-# Here we are arbitrarily assigning species listed as herbivores or excavators in the RLS data as "0" this is because we have some suspicions about the isotopic values we got for these species.
+# Here we are assigning species listed as herbivores or excavators in the RLS data as "0"
 RLS_pathway$BPCI = as.character(RLS_pathway$BPCI)
 RLS_pathway$BPCI[RLS_pathway$trophic_guild %in% c("Primary_consumer", "Excavator")] <- 0
 # Record the source as "assigned"
@@ -2506,7 +2504,7 @@ check =
 check
 
 
-# Some that we didn't sample I am pretty sure are planktivores
+# Planktivores
 RLS_pathway$BPCI[RLS_pathway$Genus %in% c("Aioliops", "Pempheris", "Scombridae")] <- 1
 # Record the source as "assigned"
 RLS_pathway$source[RLS_pathway$Genus %in% c("Aioliops", "Pempheris", "Scombridae")] <- "Assigned"
@@ -2541,7 +2539,7 @@ check =
   summarise(n_distinct(Species))
 check
 
-# First, deal with the easy ones
+# Assign
 RLS_pathway$BPCI_w_herbSIA[RLS_pathway$Genus %in% c("Aioliops", "Pempheris", "Scombridae")] <- 1
 RLS_pathway$source_w_herbinc[RLS_pathway$Genus %in% c("Aioliops", "Pempheris", "Scombridae")] <- "Assigned"
 check = RLS_pathway %>% filter(is.na(BPCI_w_herbSIA))
@@ -2574,7 +2572,7 @@ check
 
 
 
-# Fill in the herbs not covered by what we have done:
+# Fill in the "herbis" not covered by what we have sampled:
 bottom = 
   RLS_pathway %>% 
   filter(is.na(BPCI_w_herbSIA))
@@ -2658,7 +2656,7 @@ gsr <- function(Source, Search, Replace) {
   Changed 
 }
 
-load("RLS_pathway.Rdata")
+load("RLS_pathway.Rdata") # Made in past section
 
 RLS_pathway = subset(RLS_pathway, select = c(
   Species, family, Genus,
@@ -2755,14 +2753,6 @@ unique(RLS_survey_cleaned$site_code)
 length(unique(RLS_survey_cleaned$survey_id)) #42
 
 
-# BRING TRAITS
-# Combine RLS and pathway data
-load("morais_bell_2019.Rdata")
-names(morais_bell_2019)
-# Join all traits
-RLS_survey_cleaned = left_join(RLS_survey_cleaned, morais_bell_2019, by = c("Species"))
-
-
 
 # Join the BPCI data
 names(RLS_pathway)
@@ -2783,7 +2773,7 @@ length(unique(check$Species))
 
 
 # -----------------------------------------------------------
-# NEW JUST RENAME DATA TO MESS AROUND WITH IT FROM HERE
+# NEW JUST RENAME DATA TO PROCEED FROM HERE
 RLS_ind = RLS_survey_cleaned
 names(RLS_ind)
 
@@ -3190,8 +3180,8 @@ library(plotly)
 
 
 # LOAD DATA
-load("RLS_trans_sampled.Rdata")
-load("RLS_trans.Rdata")
+load("RLS_trans_sampled.Rdata") # Made in previous sections
+load("RLS_trans.Rdata") # Made in previous sections
 
 
 
