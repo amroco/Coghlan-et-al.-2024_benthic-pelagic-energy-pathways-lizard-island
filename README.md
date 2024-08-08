@@ -1,5 +1,5 @@
 # Coghlan-et-al.-2024_benthic-pelagic-energy-pathways-lizard-island
-Data for: "Beyond pelagic subsidies: benthic primary production also fuels coral reef fish communities"
+Code for: "Beyond pelagic subsidies: benthic primary production also fuels coral reef fish communities"
 
 Authors: Amy Rose Coghlan1*; Heidi Pethybridge2; Asta Audzijonyte1, 3; Rick D. Stuart-Smith1; Chris Harrod4; Elizabeth A. Brewer2; Julia Blanchard1, 3
 
