@@ -1,0 +1,3355 @@
+---
+title: "SIA_PROJECT"
+author: "Amy Rose Coghlan"
+date: "08/04/2022"
+output: html_document
+---
+
+
+
+#NOTE! NOTE! NOTE!
+These data form part of a PhD. Some chapters are still pending publication. For permission to use data contact amy.coghlan@utas.edu.au
+
+From the paper:
+"Beyond pelagic subsidies: benthic primary production also fuels coral reef fish communities"
+
+Amy Rose Coghlan*; Heidi Pethybridge; Asta Audzijonyte; Rick D. Stuart-Smith; Chris Harrod; Elizabeth A. Brewer; Julia Blanchard
+
+*amy.coghlan@utas.edu.au
+
+
+
+
+# Exploratory plots
+
+NOTE: FIG. 1 is in methods and is not produced in R.
+NOTE! NOTE! NOTE!
+These data form part of a PhD. Some chapters are still pending publication. For permission to use data contact amy.coghlan@utas.edu.au
+##FIG. 2: Biplot (raw data)
+```{R}
+library(ggplot2)
+library(fishualize)
+library(tidyverse)
+library(plotly)
+library(ggalt)
+
+# Find & Replace FunctionF
+gsr <- function(Source, Search, Replace) { 
+  if (length(Search) != length(Replace))     stop("Search and Replace Must Have Equal Number of Items\n")
+  Changed <- as.character(Source) 
+  for (i in 1:length(Search)) 
+  { 
+    cat("Replacing: ", Search[i], " With: ", Replace[i], "\n")
+    Changed <- replace(Changed, Changed == Search[i], Replace[i])   }
+  cat("\n")   
+  Changed 
+}
+
+
+load("Coghlan-et-al_2024-Energy-Pathways_Lizard-Island_BASELINE-DATA.Rdata")
+
+glimpse(bdat)
+
+
+bdat$Group =
+    gsr (bdat$Group, c("Echinoderm: Urchin",
+  "Macroalgae: other",
+  "Macroalgae: brown",
+  "Macroalgae: red", 
+  "Plankton",
+  "Coralline algae",
+  "Sessile filter feeder",
+  "Coral: soft",
+  "Macroalgae: green",
+  "Macroalgae: turf",
+  "Macroalgae: detritus",
+  "Mollusc: Bivalve",
+  "Mollusc: Gastropod"), 
+c("Benthic: Urchin",
+  "Cyanobacteria",
+  "Macroalgae: brown",
+  "Macroalgae: red",
+  "Pelagic: zooplankton" ,
+  "Macroalgae: Coralline red",
+  "Pelagic: Sessile filter feeder",
+  "Other: soft coral",
+  "Macroalgae: green",
+  "Macroalgae: turf",
+  "Other: detritus",
+  "Pelagic: Bivalve",
+  "Benthic: Gastropod"
+))
+
+unique(bdat$Group)
+
+bdat$Pathway_Reference =
+    gsr (bdat$Group, c("Benthic: Urchin",
+  "Cyanobacteria",
+  "Macroalgae: brown",
+  "Macroalgae: red",
+  "Pelagic: zooplankton" ,
+  "Macroalgae: Coralline red",
+  "Pelagic: Sessile filter feeder",
+  "Other: soft coral",
+  "Macroalgae: green",
+  "Macroalgae: turf",
+  "Other: detritus",
+  "Pelagic: Bivalve",
+  "Benthic: Gastropod"), 
+c("Benthic references",
+  "Benthic (macroalgae)",
+  "Benthic (macroalgae)",
+  "Benthic (macroalgae)", 
+  "Pelagic (other)",
+  "Benthic (macroalgae)",
+  "Pelagic references",
+  "Benthic (other)",
+  "Benthic (macroalgae)",
+  "Benthic (macroalgae)",
+  "Benthic (other)",
+  "Pelagic references",
+  "Benthic references"
+))
+unique(bdat$Pathway_Reference)
+
+
+
+bdat$Group =
+    gsr (bdat$Group, c("Benthic: Urchin",
+  "Macroalgae: other",
+  "Macroalgae: brown",
+  "Macroalgae: red", 
+  "Pelagic: zooplankton",
+  "Macroalgae: Coralline red",
+  "Pelagic: Sessile filter feeder",
+  "Other: soft coral",
+  "Macroalgae: green",
+  "Macroalgae: turf",
+  "Other: detritus",
+  "Pelagic: Bivalve",
+  "Benthic: Gastropod"), 
+c("Urchin",
+  "Macroalgae (other)",
+  "Macroalgae (brown)",
+  "Macroalgae (red)", 
+  "Zoolankton",
+  "Macroalgae (coralline red)",
+  "Ascidian",
+  "Soft coral",
+  "Macroalgae (green)",
+  "Macroalgae (turf)",
+  "Detritus",
+  "Bivalve",
+  "Gastropod"
+))
+
+unique(bdat$Group)
+glimpse(bdat)
+
+pathway_centroids= subset(bdat, Pathway_Reference  %in% c("Benthic references",
+                                                             "Pelagic references"))
+
+ my_lab_N <- expression(paste(delta^{15}, 'N'))
+ my_lab_C <- expression(paste(delta^{13}, 'C'))
+ 
+glimpse(bdat)
+unique(bdat$Species)
+unique(bdat$trophic_guild)
+
+glimpse(pathway_centroids)
+
+
+
+centroids <- aggregate(cbind(d13C,d15N)~Pathway_Reference,pathway_centroids,mean)
+# 95% CI
+f <- function(z) qt(0.025,df=length(z)-1, lower.tail=F)* sd(z)/sqrt(length(z)) 
+# f         <- function(z)sd(z)/sqrt(length(z)) # function to calculate std.err
+se        <- aggregate(cbind(se.x=d13C,se.y=d15N)~Pathway_Reference,pathway_centroids,f)
+centroids <- merge(centroids,se, by="Pathway_Reference")    # add std.err column to centroids
+
+centroids
+
+
+bdat$trophic_guild = as.factor(bdat$trophic_guild)
+bdat$Group = as.factor(bdat$Group)
+unique(bdat$Group)
+unique(bdat$Pathway_Reference)
+
+bdat = filter(bdat, d15N < 8)
+
+
+
+# tiff("basal_2D_space.tiff", units="in", width=8, height=6, res=300)
+p <- ggplot(bdat, aes(d13C, d15N)) +
+    geom_hline(yintercept = 6.04, colour = "grey",linetype="dashed")+
+  geom_hline(yintercept = 4.94, colour = "grey",linetype="dashed")+
+  geom_vline(xintercept = -11.29, colour = "grey",linetype="dashed")+
+  geom_vline(xintercept = -17.13, colour = "grey",linetype="dashed")
+p
+
+p <- ggplot(bdat, aes(d13C, d15N))
+
+basal = p + geom_point(data = bdat, 
+               aes(x = d13C, y = d15N , 
+                   colour = Pathway_Reference, 
+                   shape = Group
+                   ),
+               size=3) +
+   scale_shape_manual(values=1:nlevels(bdat$Group)) +
+  geom_point(data=centroids, size=5)+
+  geom_errorbar(data=centroids,aes(ymin=d15N-se.y,ymax=d15N+se.y),width=0.1)+
+  geom_errorbarh(data=centroids,aes(xmin=d13C-se.x,xmax=d13C+se.x),height=0.1) +
+
+      geom_encircle(data=subset(bdat, Pathway_Reference=="Benthic"),
+                  fill="grey",
+                  expand=0,
+                  alpha = 0.08) +
+    geom_encircle(data=subset(bdat, Pathway_Reference=="Pelagic"),
+                  fill="grey",
+                  expand=0,
+                  alpha = 0.08) +
+    xlim(-23.5, -5) +
+  scale_y_continuous(limits = c(0,12), expand = c(0, 0)) +
+    # ggtitle ("Baseline samples in 2D Stable Isotope space") +
+  annotate(geom="text",x=-15.5, y=5.75, label="Pelagic",
+              color="black", size = 6) +
+  annotate(geom="text",x=-8.75, y=7.25, label="Benthic",
+              color="black", size = 6) +
+  ylab(my_lab_N)+
+  xlab(my_lab_C) +
+    labs(shape="Taxon group",
+      colour="Pathway references"
+    ) +
+      scale_color_manual(
+  values = c("#FFA500","#106C38", "#45D0A2",  "#005791", "#6495ED"))+
+
+    theme_classic()+
+  
+  theme(text=element_text(size=20))+
+    # coord_fixed(ratio = 1) +
+  theme(panel.grid.major = element_blank())
+
+# dev.off()
+basal
+
+
+
+load("Coghlan-et-al_2024-Energy-Pathways_Lizard-Island_FISH-AND-BASELINE-DATA.Rdata")
+glimpse(siadat)
+
+
+
+liz_dat = siadat %>% filter(State == "FNQLD")
+glimpse(liz_dat)
+liz_fish = liz_dat %>% filter(component == "Consumer")
+
+check = liz_fish %>% group_by(trophic_guild) %>% distinct(Species)
+
+length(unique(liz_fish$ID))
+
+
+length(unique(liz_fish$Family))
+glimpse(liz_fish)
+liz_fish$Family = as.factor(liz_fish$Family)
+
+ my_lab_N <- expression(paste(delta^{15}, 'N'))
+ my_lab_C <- expression(paste(delta^{13}, 'C'))
+ 
+unique(liz_dat$trophic_guild)
+summary(liz_dat$d13C)
+summary(liz_dat$d15N)
+
+pathway_centroids= subset(liz_dat, trophic_guild  %in% c("Benthic_ind",
+                                                             "Pelagic_ind"))
+
+centroids <- aggregate(cbind(d13C,d15N)~trophic_guild,pathway_centroids,mean)
+# 95% CI
+f <- function(z) qt(0.025,df=length(z)-1, lower.tail=F)* sd(z)/sqrt(length(z)) 
+# f         <- function(z)sd(z)/sqrt(length(z)) # function to calculate std.err
+se        <- aggregate(cbind(se.x=d13C,se.y=d15N)~trophic_guild,pathway_centroids,f)
+centroids <- merge(centroids,se, by="trophic_guild")    # add std.err column to centroids
+
+
+p <- ggplot(liz_dat, aes(d13C, d15N)) #+
+p
+
+
+
+fish = p + geom_point(data = subset(liz_dat, component %in% c("Consumer")), aes(x = d13C, y = d15N , colour = trophic_guild, shape = Family),size=3, alpha=0.8) +
+   scale_shape_manual(values=1:nlevels(liz_fish$Family)) + 
+      geom_point(data=centroids, size=5)+
+  geom_errorbar(data=centroids,aes(ymin=d15N-se.y,ymax=d15N+se.y),width=0.1)+
+  geom_errorbarh(data=centroids,aes(xmin=d13C-se.x,xmax=d13C+se.x),height=0.1) +
+    theme_classic() +
+  ylab(my_lab_N)+
+  # ylab(" ")+
+  # xlab(my_lab_C) +
+  xlab(" ") +
+  xlim(-23.5, -5) +
+  ylim(0, 12.5) +
+  # scale_x_continuous(limits = c(0,14, by = 2), expand = c(0, 0)) +
+  # ylim(-23.5, -5) +
+    labs(colour="Broad Trophic Guild") +
+  annotate(geom="text",x=-15.5, y=5.75, label="Pelagic",
+              color="black", size = 6) +
+  annotate(geom="text",x=-8.75, y=7.25, label="Benthic",
+              color="black", size = 6) +
+  scale_color_manual(
+  # values = c("#3CB371",  "#191970", "#DAA520",  "#00BFFF"))+
+  values = c("#00DD89",  "#4CA3FA", "#1531BC",  "#03E4E4"))+
+  theme(axis.text.x=element_blank()) +
+  theme(text=element_text(size=20))+
+    # coord_fixed(ratio = 1) +
+  theme(panel.grid.major = element_blank())
+  
+
+fish
+
+
+library(cowplot)
+cowplot_2d = 
+  plot_grid(fish, 
+            basal,
+            align = "Vh",
+            axis = "tblr",
+            nrow= 2,
+            rel_heights = 1,
+            rel_widths = 1)
+
+
+cowplot_2d
+
+library(patchwork)
+# define plot layout 4 x 4
+
+tiff("all_2D_space.tiff", units="in", width=10, height=12.5, res=300)
+layout <- "
+A
+B
+"
+
+fish +
+  basal +
+  plot_layout(design = layout, heights = c(1, 1), guides= 'collect') +
+  plot_annotation(tag_levels = 'A')
+
+
+
+dev.off()
+
+```
+
+
+
+
+##  FIG. 3: Goodness-of-fit (raw data)
+NOTE! NOTE! NOTE!
+These data form part of a PhD. Some chapters are still pending publication. For permission to use data contact amy.coghlan@utas.edu.au
+Side by side median with median minus sample sizes extremes
+```{r, eval=T, warning=F, include=T, message=F, echo=F, comment='##', tidy=T}
+library(tidyverse)
+library(dplyr)
+
+load("Coghlan-et-al_2024-Energy-Pathways_Lizard-Island_FISH-DATA.Rdata")
+glimpse(fdat)
+
+# SPECIES
+summ_sp = fdat %>% group_by(Species) %>%  
+  summarise(mean_d15N_sp = mean(d15N),
+            med_d15N_sp = median(d15N),
+            n_ind_sp = n_distinct(ID))
+summ_sp1 = summ_sp %>% filter(n_ind_sp>1)
+fdat_sia = left_join(fdat,summ_sp1, by = "Species")
+
+# GENUS
+summ_gn = fdat %>% group_by(Genus) %>%  
+  summarise(mean_d15N_gn = mean(d15N),
+            med_d15N_gn = median(d15N),
+            n_ind_gen = n_distinct(ID))
+summ_gn1 = summ_gn %>% filter(n_ind_gen>1)
+fdat_sia = left_join(fdat_sia,summ_gn1, by = "Genus")
+
+# FAMILY
+summ_fam = fdat %>% group_by(Family) %>%  
+  summarise(mean_d15N_fam = mean(d15N),
+            med_d15N_fam = median(d15N),
+            n_ind_fam = n_distinct(ID))
+summ_fam1 = summ_fam %>% filter(n_ind_fam>1)
+fdat_sia = left_join(fdat_sia,summ_fam1, by = "Family")
+
+
+summ_tg = fdat %>% group_by(trophic_guild) %>%  
+  summarise(mean_d15N_tg = mean(d15N),
+            med_d15N_tg = median(d15N),
+            n_ind_troph = n_distinct(ID))
+summ_tg1 = summ_tg %>% filter(n_ind_troph>1)
+fdat_sia = left_join(fdat_sia,summ_tg1, by = "trophic_guild")
+
+names(fdat_sia)
+
+
+
+
+glimpse(fdat_sia)
+par(mfrow=c(4,1))
+
+meansp<-lm(med_d15N_fam~d15N+0,fdat_sia) #Do without an intercept, want it to be close to one
+p<-summary(meansp)
+p
+p$adj.r.squared
+
+names(fdat_sia)
+
+
+library(ggpubr)
+fdat_sia
+fdat_sia$dummy_factor = "dummy"
+
+my_title1 = expression(paste(delta^{15},'N individual to group mean 1:1'))
+my_y_axis1 <- expression(paste('Species level mean  ', ' ', delta^{15},'N'))
+
+plot_d15N_1 =
+  ggplot(data = fdat_sia, 
+         aes(y = mean_d15N_sp, x = d15N, label = Species, na.rm = TRUE,shape=dummy_factor)) +
+    scale_shape(solid = FALSE) +
+  geom_point(alpha = 0.8, size = 2)+
+    guides(shape = "none", size= "none") +
+  geom_abline(slope=1, intercept = 0,linetype="dashed")+
+  stat_regline_equation(label.y = 11, aes(label = ..rr.label..)) +
+  theme_classic() +
+        ggtitle(my_title1) +
+  theme(plot.title = element_text(hjust = 0.5))+
+  xlab("") +
+  ylab(my_y_axis1) +
+  theme(legend.position=NULL,
+        axis.text.x=element_blank()
+        )
+plot_d15N_1
+
+
+my_y_axis2 <- expression(paste('Genus level mean ', ' ', delta^{15},'N'))
+plot_d15N_2 =
+  ggplot(data = fdat_sia, 
+         aes(y = mean_d15N_gn, x = d15N, label = Species, na.rm = TRUE,shape=dummy_factor)) +
+      scale_shape(solid = FALSE) +
+  geom_point(alpha = 0.8, size = 2)+
+    guides(shape = "none", size= "none") +
+  geom_abline(slope=1, intercept = 0,linetype="dashed")+
+  stat_regline_equation(label.y = 11, aes(label = ..rr.label..)) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))+
+  xlab("") +
+  ylab(my_y_axis2) +
+  theme(legend.position=NULL,
+        axis.text.x=element_blank()
+        )
+plot_d15N_2
+
+# Get axis proper
+my_y_axis <- expression(paste('Mean Trophic Guild ', '  ', delta^{15},'N'))
+my_x_axis <- expression(paste('Individual  ',delta^{15}, 'N'))
+
+my_y_axis3 <- expression(paste('Family level mean ', ' ', delta^{15},'N'))
+plot_d15N_3 =
+  ggplot(data = fdat_sia, 
+         aes(y = mean_d15N_fam, x = d15N, label = Species, na.rm = TRUE,shape=dummy_factor)) +
+      scale_shape(solid = FALSE) +
+  geom_point(alpha = 0.8, size = 2)+
+    guides(shape = "none", size= "none") +
+  stat_regline_equation(label.y = 11, aes(label = ..rr.label..)) +
+  geom_abline(slope=1, intercept = 0,linetype="dashed")+
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))+
+    xlab(my_x_axis) +
+  ylab(my_y_axis3) +
+  theme(legend.position=NULL) #,
+plot_d15N_3
+
+
+
+
+
+
+
+
+
+
+library(cowplot)
+cow_plot <- plot_grid(plot_d15N_1, 
+                      plot_d15N_2,
+                      plot_d15N_3,
+                     rel_heights = c(1,1),
+                     nrow = 3,
+                     ncol = 1,
+                     align = 'v')
+cow_plot
+
+
+
+
+
+
+# CARBON
+
+summ_sp = fdat %>% group_by(Species) %>%  
+  summarise(mean_d13C_sp = mean(d13C), 
+            med_d13C_sp = median(d13C),
+            n_ind_sp = n_distinct(ID))
+summ_sp1 = summ_sp %>% filter(n_ind_sp>1)
+fdat_sia_carb = left_join(fdat,summ_sp1, by = "Species")
+
+
+summ_gn = fdat %>% group_by(Genus) %>%  
+  summarise(mean_d13C_gen = mean(d13C),
+            med_d13C_gen = median(d13C),
+            n_ind_gen = n_distinct(ID))
+summ_gn1 = summ_gn %>% filter(n_ind_gen>1)
+fdat_sia_carb = left_join(fdat_sia_carb,summ_gn1, by = "Genus")
+
+summ_fam = fdat %>% group_by(Family) %>%  
+  summarise(mean_d13C_fam = mean(d13C),
+            med_d13C_fam = median(d13C),
+            n_ind_fam = n_distinct(ID))
+summ_fam1 = summ_fam %>% filter(n_ind_fam>1)
+fdat_sia_carb = left_join(fdat_sia_carb,summ_fam1, by = "Family")
+
+summ_tg = fdat %>% group_by(trophic_guild) %>%  
+  summarise(mean_d13C_tg = mean(d13C),
+            med_d13C_tg = median(d13C),
+            n_ind_tg = n_distinct(ID))
+summ_tg1 = summ_tg %>% filter(n_ind_tg>1) 
+fdat_sia_carb = left_join(fdat_sia_carb,summ_tg1, by = "trophic_guild")
+
+
+
+
+summ_RLS = fdat %>% group_by(RLS_trophic_group) %>%  
+  summarise(mean_d13C_RLS = mean(d13C),
+            med_d13C_RLS = median(d13C),
+            n_ind_RLS = n_distinct(ID))
+summ_RLS1 = summ_RLS %>% filter(n_ind_RLS>1) 
+fdat_sia_carb = left_join(fdat_sia_carb,summ_RLS1, by = "RLS_trophic_group")
+
+
+glimpse(fdat_sia_carb)
+par(mfrow=c(4,1))
+
+meansp<-lm(med_d13C_fam~d13C+0,fdat_sia_carb) #Do without an intercept, want it to be close to one
+p<-summary(meansp)
+p
+p$adj.r.squared
+
+
+fdat_sia_carb$dummy_factor = "dummy"
+
+
+library(ggpubr)
+my_title = expression(paste(delta^{13},'C individual to group mean 1:1'))
+my_y_axisC3 <- expression(paste('Species level mean ', ' ', delta^{13},'C'))
+plot_d13C_1 =
+  ggplot(data = fdat_sia_carb, 
+         aes(y = med_d13C_sp, x = d13C, label = Species, na.rm = TRUE,shape=dummy_factor)) +
+      scale_shape(solid = FALSE) +
+  geom_point(alpha = 0.8, size = 2)+
+    guides(shape = "none", size = "none") +
+  stat_regline_equation(label.y = -10, aes(label = ..rr.label..)) +
+  theme_classic() +
+        ggtitle(my_title) +
+  theme(plot.title = element_text(hjust = 0.5))+
+    geom_abline(slope=1, intercept = 0,linetype="dashed")+
+  xlab("") +
+  ylab(my_y_axisC3) +
+  theme(legend.position=NULL,
+        axis.text.x=element_blank()
+        )
+plot_d13C_1
+
+
+
+
+
+
+
+
+
+my_y_axisC2 <- expression(paste('Genus level mean ', ' ', delta^{13},'C'))
+plot_d13C_2 =
+  ggplot(data = fdat_sia_carb, 
+         aes(y = med_d13C_gen, x = d13C, label = Species, na.rm = TRUE,shape=dummy_factor)) +
+      scale_shape(solid = FALSE) +
+  geom_point(alpha = 0.8, size = 2)+
+    guides(shape = "none", size= "none") +
+    geom_abline(slope=1, intercept = 0,linetype="dashed")+
+  stat_regline_equation(label.y = -10, aes(label = ..rr.label..)) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))+
+  xlab("") +
+  ylab(my_y_axisC2) +
+  theme(legend.position=NULL,
+        axis.text.x=element_blank()
+        )
+plot_d13C_2
+
+# Get axis proper
+my_y_axis2 <- expression(paste('Mean Trophic Guild ', ' ', delta^{13},'C'))
+my_x_axis2 <- expression(paste('Individual  ',delta^{13}, 'C'))
+
+my_y_axisC1 <- expression(paste('Family level mean ', ' ', delta^{13},'C'))
+plot_d13C_3 =
+  ggplot(data = fdat_sia_carb, 
+         aes(y = med_d13C_fam, x = d13C, label = Species, na.rm = TRUE,shape=dummy_factor)) +
+      scale_shape(solid = FALSE) +
+  geom_point(alpha = 0.8, size = 2, size = 2)+
+    guides(shape = "none", size= "none") +
+    geom_abline(slope=1, intercept = 0,linetype="dashed")+
+  stat_regline_equation(label.y = -9.8, aes(label = ..rr.label..)) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5))+
+      xlab(my_x_axis2) +
+  ylab(my_y_axisC1) +
+  theme(legend.position=NULL) #,
+plot_d13C_3
+
+
+
+
+
+
+library(cowplot)
+cow_plot2 <- plot_grid(plot_d13C_1, 
+                      plot_d13C_2,
+                      plot_d13C_3,
+                     rel_heights = c(1,1),
+                     nrow = 3,
+                     ncol = 1,
+                     align = 'v')
+
+cow_plot2
+
+
+cow_plot3 = plot_grid(cow_plot,
+                      cow_plot2,
+                      rel_heights = c(1,1),
+                      nrow = 1,
+                      ncol = 2,
+                      align = 'h',
+                      hjust = -0.5, vjust = 1.5)
+
+cow_plot3
+
+
+
+tiff("Figure 3 Goodness of fit.tiff", units="in", width=8, height=8, res=300)
+    plot_grid(cow_plot,
+                      cow_plot2,
+                      rel_heights = c(1,1),
+                      nrow = 1,
+                      ncol = 2,
+                      align = 'h',
+                      hjust = -0.5, vjust = 1.5)
+dev.off()
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+# Mixing models: tRophicPosition
+### Step 1: Data Prep
+```{r, eval=T, warning=F, include=T, message=F, echo=F, comment='##', tidy=T}
+# tRophicPosition
+
+# Aim is to get TP and alpha
+library(tidyverse)
+library(plyr)
+library(dplyr)
+library(tRophicPosition)
+library(reshape2)
+
+
+load("Coghlan-et-al_2024-Energy-Pathways_Lizard-Island_FISH-AND-BASELINE-DATA.Rdata")
+
+glimpse(siadat)
+unique(siadat$Group)
+unique(siadat$component)
+unique(siadat$trophic_guild)
+
+
+
+# Let's get rid of some excess stuff
+siadat = siadat %>% select(Species,
+                           Genus,
+                           Family,
+                           trophic_guild,
+                           component,
+                           d13C,
+                           d15N,
+                           Group,
+                           Region)
+
+# Rename to match the tutorial
+names(siadat)
+names(siadat)[2] = "Spp"
+siadat$FG_sp = siadat$trophic_guild
+head(siadat)
+unique(siadat$FG_sp)
+unique(siadat$Group)
+
+
+# I want per species
+top = filter(siadat, !FG_sp %in% c("Benthic_ind","Pelagic_ind"))
+top$FG_sp=top$Spp
+top$FG_gn=top$Genus
+top$FG_fm=top$Family
+bottom = filter(siadat, FG_sp %in% c("Benthic_ind","Pelagic_ind"))
+bottom$FG_sp=bottom$FG_sp
+bottom$FG_gn=bottom$FG_sp
+bottom$FG_fm=bottom$FG_sp
+siadat = rbind(top,bottom)
+
+
+
+
+
+# Let's get a replication column
+siadat = siadat %>% group_by(Spp, Region) %>% dplyr::mutate(rep_n = n())
+head(siadat)
+summary(siadat$rep_n)
+
+
+
+# HERBIVORES 
+unique(siadat$trophic_guild)
+siadat_algbase = filter(siadat, trophic_guild %in% c("Invertivore",
+                                        "Piscivore",
+                                        "Herbivore",
+                                        "Planktivore",
+                                      "Macroalgae_B_ind",
+                                      "Macroalgae_G_ind",
+                                      "Macroalgae_R_ind",
+                                      "Macroalgae_coralline_ind",
+                                      "Macroalgae_detritus_ind", 
+                                      "Macroalgae_turf_ind"
+                                      ))
+
+
+#
+names(siadat_algbase)
+unique(siadat_algbase$FG_sp)
+unique(siadat_algbase$Group)
+
+# Let's get rid of some excess
+siadat_algbase = siadat_algbase %>% dplyr::select(Spp,
+                                   Genus,
+                                   Family,
+                           FG_sp,
+                           FG_gn,
+                           FG_fm,
+                           d13C,
+                           d15N,
+                           Group,
+                           # Functional_group,
+                           Region,
+                           rep_n)
+siadat_algbase$Spp = as.factor(siadat_algbase$Spp)
+siadat_algbase$FG_sp = as.factor(siadat_algbase$FG_sp)
+siadat_algbase$Group = as.factor(siadat_algbase$Group)
+siadat_algbase$Region = as.factor(siadat_algbase$Region)
+
+
+colSums(is.na(siadat_algbase))
+siadat_algbase$Spp = as.factor(siadat_algbase$Spp)
+siadat_algbase$FG_sp = as.factor(siadat_algbase$FG_sp)
+
+siadat_algbase$FG_sp=as.character(siadat_algbase$FG_sp)
+siadat_algbase$FG_gn=as.character(siadat_algbase$FG_gn)
+siadat_algbase$FG_fm=as.character(siadat_algbase$FG_fm)
+## Copy column.y if column.x is missing:
+siadat_algbase$FG_gn[is.na(siadat_algbase$FG_gn)] = siadat_algbase$FG_sp[is.na(siadat_algbase$FG_gn)]
+siadat_algbase$FG_fm[is.na(siadat_algbase$FG_fm)] = siadat_algbase$FG_sp[is.na(siadat_algbase$FG_fm)]
+# Re-make factor
+siadat_algbase$FG_sp = as.factor(siadat_algbase$FG_sp)
+siadat_algbase$FG_gn = as.factor(siadat_algbase$FG_gn)
+siadat_algbase$FG_fm = as.factor(siadat_algbase$FG_fm)
+siadat_algbase$Group = as.factor(siadat_algbase$Group)
+siadat_algbase$Region = as.factor(siadat_algbase$Region)
+glimpse(siadat_algbase)
+
+
+siadat_algbase = siadat_algbase %>% filter(!is.na(d15N))
+
+
+unique(siadat_algbase$Group)
+siadat_algbase = subset(siadat_algbase, Group %in% c('Consumer',
+                                                     'Macroalgae: brown', 
+                                     'Macroalgae: red'))
+
+
+siadat_algbase = subset(siadat_algbase, Group %in% c('Consumer',
+                                                     'Macroalgae: brown', 
+                                     'Macroalgae: red'))
+
+
+# HIGHER CONSUMERS
+siadat_invbase = filter(siadat, trophic_guild %in% c("Invertivore",
+                                        "Piscivore",
+                                        "Herbivore",
+                                        "Planktivore",
+                                        "Pelagic_ind",
+                                        "Benthic_ind"
+                                        ))
+unique(siadat_invbase$trophic_guild)
+
+
+unique(siadat_invbase$Region)
+
+
+
+# Remove the zooplankton
+siadat_invbase = filter(siadat_invbase,!Group %in% c("Plankton"))
+head(siadat_invbase)
+
+# Let's get rid of some excess stuff
+siadat_invbase = siadat_invbase %>% dplyr::select(Spp,
+                                       Genus,
+                                       Family,
+                           FG_sp,
+                           FG_gn,
+                           FG_fm,
+                           d13C,
+                           d15N,
+                           Group,
+                           Region,
+                           rep_n)
+glimpse(siadat_invbase)
+
+siadat_invbase$Spp = as.factor(siadat_invbase$Spp)
+siadat_invbase$FG_sp = as.factor(siadat_invbase$FG_sp)
+
+siadat_invbase$FG_sp=as.character(siadat_invbase$FG_sp)
+siadat_invbase$FG_gn=as.character(siadat_invbase$FG_gn)
+siadat_invbase$FG_fm=as.character(siadat_invbase$FG_fm)
+## Copy column.y if column.x is missing:
+siadat_invbase$FG_gn[is.na(siadat_invbase$FG_gn)] = siadat_invbase$FG_sp[is.na(siadat_invbase$FG_gn)]
+siadat_invbase$FG_fm[is.na(siadat_invbase$FG_fm)] = siadat_invbase$FG_sp[is.na(siadat_invbase$FG_fm)]
+# Re-make factor
+siadat_invbase$FG_sp = as.factor(siadat_invbase$FG_sp)
+siadat_invbase$FG_gn = as.factor(siadat_invbase$FG_gn)
+siadat_invbase$FG_fm = as.factor(siadat_invbase$FG_fm)
+siadat_invbase$Group = as.factor(siadat_invbase$Group)
+siadat_invbase$Region = as.factor(siadat_invbase$Region)
+glimpse(siadat_invbase)
+
+# save file to a csv
+write.csv(siadat_algbase,"siadat_algbase.csv", row.names = FALSE)
+write.csv(siadat_invbase,"siadat_invbase.csv", row.names = FALSE)
+
+```
+
+
+
+## Step 2: RUN rTP mixing models
+#### TDF: McCutchen 
+```{R}
+library(tidyverse)
+library(tRophicPosition)
+library(reshape2)
+library(plotly)
+
+siadat_invbase <- read.csv(
+  "siadat_invbase.csv",
+  header = TRUE,
+  stringsAsFactors = TRUE,
+  na.strings = NA
+)
+
+summary(siadat_invbase)
+glimpse(siadat_invbase)
+unique(siadat_invbase$Group)
+
+check = siadat_invbase %>% filter(FG_sp == "Pelagic_ind") 
+unique(check$Species)
+
+# Select only one state
+# Remove whitespace
+siadat_invbase$Region = as.character(siadat_invbase$Region)
+siadat_invbase$Region <- gsub(" ", "_", siadat_invbase$Region)
+siadat_invbase$Region = as.factor(siadat_invbase$Region)
+unique(siadat_invbase$Region)
+
+
+
+glimpse(siadat_invbase)
+unique(siadat_invbase$Region)
+summary(siadat_invbase$rep_n)
+colSums(is.na(siadat_invbase))
+
+## Run model
+# Choose one of the MCMC run options:
+# | run ==  | Chain Length | Burn-in | Thin | # Chains |
+# | ------------- | ------------- | ------------- | ------------- | ------------- |
+# | "test" | 1,000 | 500 | 1 | 3 |
+# | "very short" | 10,000 | 5,000 | 5 | 3 |
+# | "short" | 50,000 | 25,000 | 25 | 3 |
+# | "normal" | 100,000 | 50,000 | 50 | 3 |
+# | "long" | 300,000 | 200,000 | 100 | 3 |
+# | "very long" | 1,000,000 | 500,000 | 500 | 3 |
+# | "extreme" | 3,000,000 | 1,500,000 | 500 | 3 |
+
+
+
+# -----------------------------------------------------------------------------
+# SPECIES
+summary(siadat_invbase)
+
+# Get the data into the package:
+extract_sp_mcc  <- extractIsotopeData(siadat_invbase,
+                                       b1 = "Pelagic_ind", b2 = "Benthic_ind",
+                                       baselineColumn = "FG_sp",
+                                       consumersColumn = "FG_sp",
+                                       groupsColumn = "Region",
+                                       d13C = "d13C", d15N = "d15N")
+
+
+
+# Run the model:
+rTP_mod_mcc <-
+  multiSpeciesTP(
+    extract_sp_mcc,
+    model = "twoBaselinesFull",
+    lambda = 2,
+    n.adapt = 500,
+    n.iter = 300000,
+    thin = 100,
+    burnin = 200000,
+    n.chains = 3,
+    print = F )
+
+# Extract the data and save
+result<-list()
+result['df1']<-list(rTP_mod_mcc$df)
+rTP_mcc <- as.data.frame(result[['df1']])
+names(rTP_mcc)
+glimpse(rTP_mcc)
+rTP_mcc$TDF = "Post"
+rTP_mcc = subset(rTP_mcc, select = -c(model,combined))
+glimpse(rTP_mcc)
+save(rTP_mcc, file="rTP_mcc.Rdata")
+
+
+
+
+# Get the data into the package:
+extract_sp_mcc  <- extractIsotopeData(siadat_invbase,
+                                      b1 = "Pelagic_ind", b2 = "Benthic_ind",
+                                      baselineColumn = "FG_sp",
+                                      consumersColumn = "FG_sp",
+                                      groupsColumn = "Region",
+                                      d13C = "d13C", d15N = "d15N",
+                                      deltaC = TDF(author = "McCutchan",
+                                                   element = "C", type = "muscle"),
+                                      deltaN = TDF(author = "McCutchan",
+                                                   element = "N", type = "muscle"))
+# Run the model:
+rTP_mod_McC <-
+  multiSpeciesTP(
+    extract_sp_mcc,
+    model = "twoBaselinesFull",
+    lambda = 2,
+    n.adapt = 500,
+    n.iter = 100000,
+    thin = 50,
+    burnin = 50000,
+    n.chains = 3,
+    print = F )
+
+# Extract the data and save:
+result<-list()
+result['df1']<-list(rTP_mod_McC$df)
+rTP_mcc <- as.data.frame(result[['df1']])
+names(rTP_mcc)
+glimpse(rTP_mcc)
+rTP_mcc$TDF = "McCutchen"
+rTP_mcc = subset(rTP_mcc, select = -c(model,combined))
+glimpse(rTP_mcc)
+save(rTP_mcc, file="rTP_mcc.Rdata")
+
+
+
+
+
+# -----------------------------------------------------------------------------
+# GENUS
+# Get the data into the package:
+extract_gen_mcc  <- extractIsotopeData(siadat_invbase,
+                                        b1 = "Pelagic_ind", b2 = "Benthic_ind",
+                                        baselineColumn = "FG_gn",
+                                        consumersColumn = "FG_gn",
+                                        groupsColumn = "Region",
+                                        d13C = "d13C", d15N = "d15N")
+# Run the model:
+TP_pel_genus <-
+  multiSpeciesTP(
+    extract_gen_mcc,
+    model = "twoBaselinesFull",
+    lambda = 2,
+    n.adapt = 500,
+    n.iter = 1000000,
+    thin = 500,
+    burnin = 500000,
+    n.chains = 3,
+    print = F )
+
+# Extract the data and save:
+result<-list()
+result['df1']<-list(TP_pel_genus$df)
+rTP_mcc_gen <- as.data.frame(result[['df1']])
+names(rTP_mcc_gen)
+glimpse(rTP_mcc_gen)
+rTP_mcc_gen$TDF = "Post"
+rTP_mcc_gen = subset(rTP_mcc_gen, select = -c(model,combined))
+glimpse(rTP_mcc_gen)
+save(rTP_mcc_gen, file="rTP_mcc_gen.Rdata")
+
+
+
+
+
+extract_gen_mcc  <- extractIsotopeData(siadat_invbase,
+                                       b1 = "Pelagic_ind", b2 = "Benthic_ind",
+                                       baselineColumn = "FG_gn",
+                                       consumersColumn = "FG_gn",
+                                       groupsColumn = "Region",
+                                       d13C = "d13C", d15N = "d15N",
+                                       deltaC = TDF(author = "McCutchan",
+                                                    element = "C", type = "muscle"),
+                                       deltaN = TDF(author = "McCutchan",
+                                                    element = "N", type = "muscle"))
+# Run the model:
+rTP_mod_gen_mcc <-
+  multiSpeciesTP(
+    extract_gen_mcc,
+    model = "twoBaselinesFull",
+    lambda = 2,
+    n.adapt = 500,
+    n.iter = 100000,
+    thin = 50,
+    burnin = 50000,
+    n.chains = 3,
+    print = F )
+
+# Extract the data and save:
+result<-list()
+result['df1']<-list(rTP_mod_gen_mcc$df)
+rTP_mcc_gen <- as.data.frame(result[['df1']])
+names(rTP_mcc_gen)
+glimpse(rTP_mcc_gen)
+rTP_mcc_gen$TDF = "McCutchen"
+rTP_mcc_gen = subset(rTP_mcc_gen, select = -c(model,combined))
+glimpse(rTP_mcc_gen)
+save(rTP_mcc_gen, file="rTP_mcc_gen.Rdata")
+load("rTP_mcc_gen.Rdata")
+glimpse(rTP_mcc_gen)
+
+
+
+
+
+# -----------------------------------------------------------------------------
+# FAMILY
+# Get the data into the package:
+extract_fam_mcc  <- extractIsotopeData(siadat_invbase,
+                                        b1 = "Pelagic_ind", b2 = "Benthic_ind",
+                                        baselineColumn = "FG_fm",
+                                        consumersColumn = "FG_fm",
+                                        groupsColumn = "Region",
+                                        d13C = "d13C", d15N = "d15N")
+# Run the model:
+TP_pel_family <-
+  multiSpeciesTP(
+    extract_fam_mcc,
+    model = "twoBaselinesFull",
+    lambda = 2,
+    n.adapt = 500,
+    n.iter = 1000000,
+    thin = 500,
+    burnin = 500000,
+    n.chains = 3,
+    print = F )
+
+# Extract the data and save:
+result<-list()
+result['df1']<-list(TP_pel_family$df)
+TP_pel_family <- as.data.frame(result[['df1']])
+names(TP_pel_family)
+glimpse(TP_pel_family)
+TP_pel_family$TDF = "Post"
+rTP_mcc_gen = subset(TP_pel_family, select = -c(model,combined))
+glimpse(TP_pel_family)
+save(TP_pel_family, file="rTP_mcc_fam.Rdata")
+
+
+
+extract_fam_mcc  <- extractIsotopeData(siadat_invbase,
+                                       b1 = "Pelagic_ind", b2 = "Benthic_ind",
+                                       baselineColumn = "FG_fm",
+                                       consumersColumn = "FG_fm",
+                                       groupsColumn = "Region",
+                                       d13C = "d13C", d15N = "d15N",
+                                       deltaC = TDF(author = "McCutchan",
+                                                    element = "C", type = "muscle"),
+                                       deltaN = TDF(author = "McCutchan",
+                                                    element = "N", type = "muscle"))
+# Run the model:
+rTP_mod_fam_mcc <-
+  multiSpeciesTP(
+    extract_fam_mcc,
+    model = "twoBaselinesFull",
+    lambda = 2,
+    n.adapt = 500,
+    n.iter = 100000,
+    thin = 50,
+    burnin = 50000,
+    n.chains = 3,
+    print = F )
+
+# Extract the data and save:
+result<-list()
+result['df1']<-list(rTP_mod_fam_mcc$df)
+rTP_mcc_fam <- as.data.frame(result[['df1']])
+names(rTP_mcc_fam)
+glimpse(rTP_mcc_fam)
+rTP_mcc_fam$TDF = "McCutchen"
+rTP_mcc_fam = subset(rTP_mcc_fam, select = -c(model,combined))
+glimpse(rTP_mcc_fam)
+save(rTP_mcc_fam, file="rTP_mcc_fam.Rdata")
+
+
+```
+
+
+
+#### TDF: Post
+```{R}
+library(tidyverse)
+library(tRophicPosition)
+library(reshape2)
+library(plotly)
+
+siadat_invbase <- read.csv(
+  "siadat_invbase.csv",
+  header = TRUE,
+  stringsAsFactors = TRUE,
+  na.strings = NA
+)
+
+summary(siadat_invbase)
+glimpse(siadat_invbase)
+unique(siadat_invbase$Group)
+
+check = siadat_invbase %>% filter(FG_sp == "Pelagic_ind") 
+unique(check$Species)
+
+# Select only one state
+# Remove whitespace
+siadat_invbase$Region = as.character(siadat_invbase$Region)
+siadat_invbase$Region <- gsub(" ", "_", siadat_invbase$Region)
+siadat_invbase$Region = as.factor(siadat_invbase$Region)
+unique(siadat_invbase$Region)
+
+
+
+glimpse(siadat_invbase)
+unique(siadat_invbase$Region)
+summary(siadat_invbase$rep_n)
+colSums(is.na(siadat_invbase))
+
+## Run model
+# Choose one of the MCMC run options:
+# | run ==  | Chain Length | Burn-in | Thin | # Chains |
+# | ------------- | ------------- | ------------- | ------------- | ------------- |
+# | "test" | 1,000 | 500 | 1 | 3 |
+# | "very short" | 10,000 | 5,000 | 5 | 3 |
+# | "short" | 50,000 | 25,000 | 25 | 3 |
+# | "normal" | 100,000 | 50,000 | 50 | 3 |
+# | "long" | 300,000 | 200,000 | 100 | 3 |
+# | "very long" | 1,000,000 | 500,000 | 500 | 3 |
+# | "extreme" | 3,000,000 | 1,500,000 | 500 | 3 |
+
+
+
+# -----------------------------------------------------------------------------
+# SPECIES
+summary(siadat_invbase)
+
+# Get the data into the package:
+extract_sp_post  <- extractIsotopeData(siadat_invbase,
+                                       b1 = "Pelagic_ind", b2 = "Benthic_ind",
+                                       baselineColumn = "FG_sp",
+                                       consumersColumn = "FG_sp",
+                                       groupsColumn = "Region",
+                                       d13C = "d13C", d15N = "d15N")
+
+
+
+# Run the model:
+rTP_mod_post <-
+  multiSpeciesTP(
+    extract_sp_post,
+    model = "twoBaselinesFull",
+    lambda = 2,
+    n.adapt = 500,
+    n.iter = 300000,
+    thin = 100,
+    burnin = 200000,
+    n.chains = 3,
+    print = F )
+
+# Extract the data and save
+result<-list()
+result['df1']<-list(rTP_mod_post$df)
+rTP_post <- as.data.frame(result[['df1']])
+names(rTP_post)
+glimpse(rTP_post)
+rTP_post$TDF = "Post"
+rTP_post = subset(rTP_post, select = -c(model,combined))
+glimpse(rTP_post)
+save(rTP_post, file="rTP_post.Rdata")
+
+
+
+
+# Get the data into the package:
+extract_sp_post  <- extractIsotopeData(siadat_invbase,
+                                      b1 = "Pelagic_ind", b2 = "Benthic_ind",
+                                      baselineColumn = "FG_sp",
+                                      consumersColumn = "FG_sp",
+                                      groupsColumn = "Region",
+                                      d13C = "d13C", d15N = "d15N",
+                                      deltaC = TDF(author = "postutchan",
+                                                   element = "C", type = "muscle"),
+                                      deltaN = TDF(author = "postutchan",
+                                                   element = "N", type = "muscle"))
+# Run the model:
+rTP_mod_post <-
+  multiSpeciesTP(
+    extract_sp_post,
+    model = "twoBaselinesFull",
+    lambda = 2,
+    n.adapt = 500,
+    n.iter = 100000,
+    thin = 50,
+    burnin = 50000,
+    n.chains = 3,
+    print = F )
+
+# Extract the data and save:
+result<-list()
+result['df1']<-list(rTP_mod_post$df)
+rTP_post <- as.data.frame(result[['df1']])
+names(rTP_post)
+glimpse(rTP_post)
+rTP_post$TDF = "Post"
+rTP_post = subset(rTP_post, select = -c(model,combined))
+glimpse(rTP_post)
+save(rTP_post, file="rTP_post.Rdata")
+
+
+
+
+
+# -----------------------------------------------------------------------------
+# GENUS
+# Get the data into the package:
+extract_gen_post  <- extractIsotopeData(siadat_invbase,
+                                        b1 = "Pelagic_ind", b2 = "Benthic_ind",
+                                        baselineColumn = "FG_gn",
+                                        consumersColumn = "FG_gn",
+                                        groupsColumn = "Region",
+                                        d13C = "d13C", d15N = "d15N")
+# Run the model:
+TP_pel_genus <-
+  multiSpeciesTP(
+    extract_gen_post,
+    model = "twoBaselinesFull",
+    lambda = 2,
+    n.adapt = 500,
+    n.iter = 1000000,
+    thin = 500,
+    burnin = 500000,
+    n.chains = 3,
+    print = F )
+
+# Extract the data and save:
+result<-list()
+result['df1']<-list(TP_pel_genus$df)
+rTP_post_gen <- as.data.frame(result[['df1']])
+names(rTP_post_gen)
+glimpse(rTP_post_gen)
+rTP_post_gen$TDF = "Post"
+rTP_post_gen = subset(rTP_post_gen, select = -c(model,combined))
+glimpse(rTP_post_gen)
+save(rTP_post_gen, file="rTP_post_gen.Rdata")
+
+
+
+
+
+extract_gen_post  <- extractIsotopeData(siadat_invbase,
+                                       b1 = "Pelagic_ind", b2 = "Benthic_ind",
+                                       baselineColumn = "FG_gn",
+                                       consumersColumn = "FG_gn",
+                                       groupsColumn = "Region",
+                                       d13C = "d13C", d15N = "d15N",
+                                       deltaC = TDF(author = "postutchan",
+                                                    element = "C", type = "muscle"),
+                                       deltaN = TDF(author = "postutchan",
+                                                    element = "N", type = "muscle"))
+# Run the model:
+rTP_mod_gen_post <-
+  multiSpeciesTP(
+    extract_gen_post,
+    model = "twoBaselinesFull",
+    lambda = 2,
+    n.adapt = 500,
+    n.iter = 100000,
+    thin = 50,
+    burnin = 50000,
+    n.chains = 3,
+    print = F )
+
+# Extract the data and save:
+result<-list()
+result['df1']<-list(rTP_mod_gen_post$df)
+rTP_post_gen <- as.data.frame(result[['df1']])
+names(rTP_post_gen)
+glimpse(rTP_post_gen)
+rTP_post_gen$TDF = "Post"
+rTP_post_gen = subset(rTP_post_gen, select = -c(model,combined))
+glimpse(rTP_post_gen)
+save(rTP_post_gen, file="rTP_post_gen.Rdata")
+load("rTP_post_gen.Rdata")
+glimpse(rTP_post_gen)
+
+
+
+
+
+# -----------------------------------------------------------------------------
+# FAMILY
+# Get the data into the package:
+extract_fam_post  <- extractIsotopeData(siadat_invbase,
+                                        b1 = "Pelagic_ind", b2 = "Benthic_ind",
+                                        baselineColumn = "FG_fm",
+                                        consumersColumn = "FG_fm",
+                                        groupsColumn = "Region",
+                                        d13C = "d13C", d15N = "d15N")
+# Run the model:
+TP_pel_family <-
+  multiSpeciesTP(
+    extract_fam_post,
+    model = "twoBaselinesFull",
+    lambda = 2,
+    n.adapt = 500,
+    n.iter = 1000000,
+    thin = 500,
+    burnin = 500000,
+    n.chains = 3,
+    print = F )
+
+# Extract the data and save:
+result<-list()
+result['df1']<-list(TP_pel_family$df)
+TP_pel_family <- as.data.frame(result[['df1']])
+names(TP_pel_family)
+glimpse(TP_pel_family)
+TP_pel_family$TDF = "Post"
+rTP_post_gen = subset(TP_pel_family, select = -c(model,combined))
+glimpse(TP_pel_family)
+save(TP_pel_family, file="rTP_post_fam.Rdata")
+
+
+
+extract_fam_post  <- extractIsotopeData(siadat_invbase,
+                                       b1 = "Pelagic_ind", b2 = "Benthic_ind",
+                                       baselineColumn = "FG_fm",
+                                       consumersColumn = "FG_fm",
+                                       groupsColumn = "Region",
+                                       d13C = "d13C", d15N = "d15N",
+                                       deltaC = TDF(author = "postutchan",
+                                                    element = "C", type = "muscle"),
+                                       deltaN = TDF(author = "postutchan",
+                                                    element = "N", type = "muscle"))
+# Run the model:
+rTP_mod_fam_post <-
+  multiSpeciesTP(
+    extract_fam_post,
+    model = "twoBaselinesFull",
+    lambda = 2,
+    n.adapt = 500,
+    n.iter = 100000,
+    thin = 50,
+    burnin = 50000,
+    n.chains = 3,
+    print = F )
+
+# Extract the data and save:
+result<-list()
+result['df1']<-list(rTP_mod_fam_post$df)
+rTP_post_fam <- as.data.frame(result[['df1']])
+names(rTP_post_fam)
+glimpse(rTP_post_fam)
+rTP_post_fam$TDF = "Post"
+rTP_post_fam = subset(rTP_post_fam, select = -c(model,combined))
+glimpse(rTP_post_fam)
+save(rTP_post_fam, file="rTP_post_fam.Rdata")
+
+
+```
+
+
+
+
+# FIGURE 4: Mode & 95% CI (Line-Range)
+NOTE! NOTE! NOTE!
+These data form part of a PhD. Some chapters are still pending publication. For permission to use data contact amy.coghlan@utas.edu.au
+```{R}
+
+
+library(tidyverse)
+
+# SPECIES
+load("rTP_mcc.Rdata")
+glimpse(rTP_mcc)
+names(rTP_mcc)[1] = "Region"
+names(rTP_mcc)[2] = "Species"
+names(rTP_mcc)[3] = "TP_lower"
+names(rTP_mcc)[4] = "TP_upper"
+names(rTP_mcc)[5] = "TP_median"
+names(rTP_mcc)[6] = "TP_mode"
+names(rTP_mcc)[7] = "PCI_lower"
+names(rTP_mcc)[8] = "PCI_upper"
+names(rTP_mcc)[9] = "PCI_median"
+names(rTP_mcc)[10] = "PCI_mode"
+unique(rTP_mcc$Species)
+
+
+
+summary(rTP_mcc$TP_mode)
+summary(rTP_mcc$PCI_mode)
+sd(rTP_mcc$PCI_mode)
+
+# GENUS
+load("rTP_mcc_gen.Rdata")
+glimpse(rTP_mcc_gen)
+names(rTP_mcc_gen)[1] = "Region"
+names(rTP_mcc_gen)[2] = "Genus"
+names(rTP_mcc_gen)[3] = "TP_lower_gen"
+names(rTP_mcc_gen)[4] = "TP_upper_gen"
+names(rTP_mcc_gen)[5] = "TP_median_gen"
+names(rTP_mcc_gen)[6] = "TP_mode_gen"
+names(rTP_mcc_gen)[7] = "PCI_lower_gen"
+names(rTP_mcc_gen)[8] = "PCI_upper_gen"
+names(rTP_mcc_gen)[9] = "PCI_median_gen"
+names(rTP_mcc_gen)[10] = "PCI_mode_gen"
+
+# FAMILY
+load('rTP_mcc_fam.Rdata')
+glimpse(rTP_mcc_fam)
+# rTP_mcc_fam = subset(rTP_mcc_fam, select = -model)
+names(rTP_mcc_fam)[1] = "Region"
+names(rTP_mcc_fam)[2] = "Family"
+names(rTP_mcc_fam)[3] = "TP_lower_fam"
+names(rTP_mcc_fam)[4] = "TP_upper_fam"
+names(rTP_mcc_fam)[5] = "TP_median_fam"
+names(rTP_mcc_fam)[6] = "TP_mode_fam"
+names(rTP_mcc_fam)[7] = "PCI_lower_fam"
+names(rTP_mcc_fam)[8] = "PCI_upper_fam"
+names(rTP_mcc_fam)[9] = "PCI_median_fam"
+names(rTP_mcc_fam)[10] = "PCI_mode_fam"
+
+# Bring the herbivores back in, by adding these traits back to the RLS fish list.
+load("siadat.Rdata")
+glimpse(siadat)
+
+siadat = 
+  siadat %>% 
+  filter(component == "Consumer")
+
+details = 
+  subset(siadat,
+         select =
+          c(Species,
+            Genus,
+            Family,
+            trophic_guild))
+
+unique(details$Region)
+unique(details$Species)
+unique(rTP_mcc$Species)
+
+details_sp = 
+  dplyr::left_join(rTP_mcc, details,
+            by = c("Species"))
+
+details_sp = details_sp %>% group_by(Species, Region) %>% dplyr::mutate(n_sp_ind = n())
+
+# Now we can bring in the other level data
+# we have Genus and Family reattached to the data
+rTP_all_liz = 
+  left_join(details_sp, rTP_mcc_gen,
+            by = c("Genus","Region", "TDF"))
+
+rTP_all_liz = rTP_all_liz %>% group_by(Genus, Region) %>% dplyr::mutate(n_gen_ind = n(), n_gen_sp = n_distinct(Species))
+
+
+# FAMILY (18 families)
+
+rTP_all_liz = 
+  left_join(rTP_all_liz, rTP_mcc_fam,
+            by = c("Family","Region", "TDF"))
+rTP_all_liz = rTP_all_liz %>% group_by(Genus, Region) %>% dplyr::mutate(n_fam_ind = n(), n_fam_sp = n_distinct(Species), n_fam_gen = n_distinct(Genus))
+
+
+
+glimpse(rTP_all_liz) 
+
+
+unique(rTP_all_liz$Species)
+
+save(rTP_all_liz, file =  "rTP_all_liz.Rdata")
+
+
+
+
+
+# --------------------------------------------------------------------
+# SPECIES
+
+names(rTP_all_liz)
+
+rTP_all_liz$Species <- gsub("_", " ", rTP_all_liz$Species)
+
+rTP_all_liz$Species = paste0(rTP_all_liz$Species," (", rTP_all_liz$n_sp_ind, ")") 
+
+rTP_all_liz$Genus = paste0(rTP_all_liz$Genus,
+                           " (", 
+                           rTP_all_liz$n_gen_ind, 
+                           " / ",
+                           rTP_all_liz$n_gen_sp,
+                           ")") 
+
+rTP_all_liz$Family = paste0(rTP_all_liz$Family,
+                           " (", 
+                           rTP_all_liz$n_fam_ind, 
+                           " / ",
+                           rTP_all_liz$n_fam_sp,
+                           " / ",
+                           rTP_all_liz$n_fam_gen,
+                           ")") 
+
+glimpse(rTP_all_liz )
+
+
+
+rTP_all_liz_sub = rTP_all_liz#rTP_all_liz %>% filter(trophic_guild != "Primary_consumer")
+unique(rTP_all_liz_sub$trophic_guild)
+
+
+
+# TP
+plot_PCI_sp =
+# DATA
+  ggplot(data = rTP_all_liz_sub,
+         aes(x = PCI_mode, 
+             y = reorder(Species, PCI_mode))) +
+  geom_vline(xintercept=0.25, colour = "black", linetype = "dashed") +
+  geom_vline(xintercept=0.5, colour = "black", linetype = "dashed") +
+  geom_vline(xintercept=0.75, colour = "black", linetype = "dashed") +
+  geom_pointrange(
+    aes(xmin =  PCI_lower, 
+        xmax = PCI_upper),
+    position = position_dodge(
+      width = 0.25,
+      preserve = c("total", "single")),
+    # size = 1,
+    alpha = 0.6)+
+  # facet_wrap(~Family, scales = "free_y", ncol = 1)+
+# TRIMMINGS 
+  xlab("Pelagic contribution index\n(± 95 % credibility interval)")+
+  ylab("Reef fish species") +
+  theme_minimal() +
+  theme(
+    axis.text.y = element_text(face = "italic")
+  )
+plot_PCI_sp
+
+
+# PCI
+plot_TP_sp =
+# DATA
+  ggplot(data = rTP_all_liz_sub,
+         aes(x = TP_mode, 
+             y = reorder(Species, PCI_mode))) +
+  geom_vline(xintercept=2.5, colour = "black", linetype = "dashed") +
+  geom_vline(xintercept=3.0, colour = "black", linetype = "dashed") +
+  geom_vline(xintercept=3.5, colour = "black", linetype = "dashed") +
+  geom_pointrange(
+    aes(xmin =  TP_lower, 
+        xmax = TP_upper),
+    position = position_dodge(
+      width = 0.25,
+      preserve = c("total", "single")),
+    alpha = 0.6)+
+  coord_cartesian(xlim=c(2,4.25))+
+# TRIMMINGS 
+  xlab("Trophic position\n(± 95 % credibility interval)")+
+  theme_minimal() +
+  theme(
+    legend.position='none',
+    axis.text.y=element_blank(),
+    axis.ticks.y=element_blank(),
+    axis.title.y=element_blank())
+plot_TP_sp
+
+
+
+
+
+
+
+library(cowplot)
+cow_plot <- plot_grid(plot_PCI_sp, 
+                     plot_TP_sp,
+                     rel_heights = c(1,1),
+                     nrow = 1,
+                     ncol = 2,
+                     align = 'h')
+
+cow_plot
+
+
+tiff("species_PCI_TP_Mcc_ALL_incHerb.tiff", units="in", width=7, height=9, res=300)
+plot_grid(plot_PCI_sp, 
+                     plot_TP_sp,
+                     rel_heights = c(1,1),
+                     rel_widths = c(2,1),
+                     nrow = 1,
+                     ncol = 2,
+                     align = 'h')
+dev.off()
+
+
+# HERBIVORES ONLY
+unique(rTP_all_liz$trophic_guild)
+rTP_all_liz_herb = rTP_all_liz %>% filter(trophic_guild == "Herbivore")
+unique(rTP_all_liz_herb$trophic_guild)
+
+
+# 
+
+# TP
+plot_PCI_sp_herb =
+# DATA
+  ggplot(data = rTP_all_liz_herb,
+         aes(x = PCI_mode, 
+             y = reorder(Species, PCI_mode))) +
+  geom_vline(xintercept=0.25, colour = "black", linetype = "dashed") +
+  geom_vline(xintercept=0.5, colour = "black", linetype = "dashed") +
+  geom_vline(xintercept=0.75, colour = "black", linetype = "dashed") +
+  geom_pointrange(
+    aes(xmin =  PCI_lower, 
+        xmax = PCI_upper),
+    position = position_dodge(
+      width = 0.25,
+      preserve = c("total", "single")),
+    alpha = 0.6)+
+# TRIMMINGS 
+  xlab("Pelagic contribution mode \n(± 95 % credibility interval)")+
+  ylab("Reef fish species") +
+  theme_minimal() +
+  theme()
+plot_PCI_sp_herb
+
+
+# PCI
+plot_TP_sp_herb =
+# DATA
+  ggplot(data = rTP_all_liz_herb,
+         aes(x = TP_mode, 
+             y = reorder(Species, PCI_mode))) +
+  geom_vline(xintercept=2.5, colour = "black", linetype = "dashed") +
+  geom_vline(xintercept=3.0, colour = "black", linetype = "dashed") +
+  geom_vline(xintercept=3.5, colour = "black", linetype = "dashed") +
+  geom_pointrange(
+    aes(xmin =  TP_lower, 
+        xmax = TP_upper),
+    position = position_dodge(
+      width = 0.25,
+      preserve = c("total", "single")),
+    alpha = 0.6)+
+        coord_cartesian(xlim=c(2,3))+
+# TRIMMINGS 
+  xlab("Trophic position mode \n(± 95 % credibility interval)")+
+  theme_minimal() +
+  theme(
+    legend.position='none',
+    axis.text.y=element_blank(),
+    axis.ticks.y=element_blank(),
+    axis.title.y=element_blank())
+plot_TP_sp_herb
+
+
+
+
+
+
+
+library(cowplot)
+cow_plot <- plot_grid(plot_PCI_sp_herb, 
+                     plot_TP_sp_herb,
+                     rel_heights = c(1,1),
+                     nrow = 1,
+                     ncol = 2,
+                     align = 'h')
+
+cow_plot
+
+
+tiff("species_PCI_TP_herb_Mcc.tiff", units="in", width=6, height=3, res=300)
+plot_grid(plot_PCI_sp_herb, 
+                     plot_TP_sp_herb,
+                     rel_heights = c(1,1),
+                     rel_widths = c(2,1),
+                     nrow = 1,
+                     ncol = 2,
+                     align = 'h')
+dev.off()
+
+
+
+
+
+
+
+# ------------------------------------------------------------
+# GENUS
+glimpse(rTP_all_liz)
+rTP_all_liz_gen =rTP_all_liz %>%  filter(n_gen_sp>1)
+glimpse(rTP_all_liz_gen)
+
+# TP
+p =
+# DATA
+  ggplot(data = rTP_all_liz_gen,
+         aes(x = PCI_mode_gen, 
+             y = reorder(Genus, PCI_mode_gen))) +
+  theme(plot.margin = unit(c(0, 0, 0, 0), "cm"))
+
+plot_PCI_gen = p +
+  geom_pointrange(
+    aes(xmin =  PCI_lower_gen, 
+        xmax = PCI_upper_gen),
+    position = position_dodge(
+      width = 0.25,
+      preserve = c("total", "single")),
+    # size = 1,
+    alpha = 0.5)+
+      xlim(0,1)+
+# TRIMMINGS 
+  xlab("Pelagic contribution mode \n(± 95 % credibility interval)")+
+  ylab("Reef fish genus") +
+  theme_minimal() +
+  theme(
+    legend.position='none',
+    axis.text.x=element_blank(),
+    axis.ticks.x=element_blank(),
+    axis.title.x=element_blank()
+        ) 
+
+plot_PCI_gen
+
+
+
+# PCI
+p =
+# DATA
+  ggplot(data = rTP_all_liz_gen,
+         aes(x = TP_mode_gen, 
+             y = reorder(Genus, PCI_mode_gen))) +
+  theme(plot.margin = unit(c(0, 0, 0, 0), "cm"))
+
+plot_TP_gen = p +
+  geom_pointrange(
+    aes(xmin =  TP_lower_gen, 
+        xmax = TP_upper_gen),
+    position = position_dodge(
+      width = 0.25,
+      preserve = c("total", "single")),
+    alpha = 0.5)+
+  coord_cartesian(xlim=c(2,4))+
+# TRIMMINGS 
+  xlab("Trophic position mode \n(± 95 % credibility interval)")+
+  theme_minimal() +
+  theme(
+    legend.position='none',
+    axis.text.y=element_blank(),
+    axis.ticks.y=element_blank(),
+    axis.title.y=element_blank(),
+    axis.text.x=element_blank(),
+    axis.ticks.x=element_blank(),
+    axis.title.x=element_blank(),
+        )
+
+plot_TP_gen
+
+
+
+
+library(cowplot)
+cow_plot1 <- plot_grid(plot_PCI_gen, 
+                     plot_TP_gen,
+                     rel_heights = c(1,1),
+                     rel_widths = c(2,1),
+                     nrow = 1,
+                     ncol = 2,
+                     align = 'h')
+
+
+cow_plot1
+
+
+
+tiff("Genus_PCI_TP_Mcc.tiff", units="in", width=7, height=4, res=300)
+plot_grid(plot_PCI_gen, 
+                     plot_TP_gen,
+                     rel_heights = c(1,1),
+                     rel_widths = c(1.5,1),
+                     nrow = 1,
+                     ncol = 2,
+                     align = 'h')
+dev.off()
+
+
+
+
+
+
+
+
+
+# ------------------------------------------------------------
+# FAMILY
+glimpse(rTP_all_liz)
+rTP_all_liz_fam =rTP_all_liz %>%  filter(n_fam_sp>1)
+glimpse(rTP_all_liz_fam)
+summary(rTP_all_liz_fam$TP_upper)
+
+# TP
+p =
+# DATA
+  ggplot(data = rTP_all_liz_fam,
+         aes(x = PCI_mode_fam, 
+             y = reorder(Family, PCI_mode_fam))) +
+   theme(plot.margin = unit(c(0, 0, 0, 0), "cm"))
+
+plot_PCI_fam = p +
+  geom_pointrange(
+    aes(xmin =  PCI_lower_fam, 
+        xmax = PCI_upper_fam),
+    position = position_dodge(
+      width = 0.25,
+      preserve = c("total", "single")),
+    alpha = 0.5)+
+    xlim(0,1)+
+# TRIMMINGS 
+  xlab("Pelagic contribution mode \n(± 95 % credibility interval)")+
+  ylab("Reef fish family") +
+  theme_minimal() +
+  theme()
+plot_PCI_fam
+
+
+# PCI
+p =
+# DATA
+  ggplot(data = rTP_all_liz_fam,
+         aes(x = TP_mode_fam, 
+             y = reorder(Family, PCI_mode_fam)))  +
+   theme(plot.margin = unit(c(0, 0, 0, 0), "cm"))
+plot_TP_fam = p +
+  geom_pointrange(
+    aes(xmin =  TP_lower_fam, 
+        xmax = TP_upper_fam),
+    position = position_dodge(
+      width = 0.25,
+      preserve = c("total", "single")),
+    alpha = 0.5)+
+  coord_cartesian(xlim=c(2,4))+
+# TRIMMINGS 
+  xlab("Trophic position mode \n(± 95 % credibility interval)")+
+  theme_minimal() +
+  theme(
+    legend.position='none',
+    axis.text.y=element_blank(),
+    axis.ticks.y=element_blank(),
+    axis.title.y=element_blank())
+plot_TP_fam
+
+
+
+
+library(cowplot)
+cow_plot2 <- plot_grid(plot_PCI_fam, 
+                     plot_TP_fam,
+                     rel_heights = c(1,1),
+                     rel_widths = c(2,1),
+                     nrow = 1,
+                     ncol = 2,
+                     align = 'h')
+
+cow_plot2
+
+plot1 = plot_grid(cowplot2)
+
+
+
+
+cow_plot3 <- plot_grid(cow_plot1, 
+                     cow_plot2,
+                     rel_heights = c(1,1.5),
+                     nrow = 2,
+                     ncol = 1,
+                     align = 'v',
+                     axis="l"
+                     )
+
+cow_plot3
+
+
+cow_plot4 = plot_grid(
+                     plot_PCI_gen,
+                     plot_PCI_fam, 
+                     rel_heights = c(1,1.3),
+                     nrow = 2,
+                     ncol = 1,
+                     align = 'hv',
+                     axis="l")
+
+cow_plot4
+
+cow_plot5 = plot_grid(
+                     plot_TP_gen, 
+                     plot_TP_fam,
+                     rel_heights = c(1,1.3),
+                     nrow = 2,
+                     ncol = 1,
+                     align = 'hv',
+                     axis="l")
+
+cow_plot5
+
+
+cow_plot6 = plot_grid(
+                     cow_plot4,
+                     cow_plot5,
+                     rel_heights = c(1,-0.1),
+                     rel_widths = c(1.5, 1),
+                     nrow = 1,
+                     ncol = 2,
+                     align = 'hv',
+                     axis="lb")
+
+cow_plot6
+
+tiff("Family_Gen_PCI_TP_mcc.tiff", units="in", width=6, height=6.5, res=300)
+plot_grid(
+                     cow_plot4,
+                     cow_plot5,
+                     rel_heights = c(1,-0.1),
+                     rel_widths = c(1.5, 1),
+                     nrow = 1,
+                     ncol = 2,
+                     align = 'hv',
+                     axis="lb")
+dev.off()
+
+
+
+
+
+tiff("Family_PCI_TP_mcc.tiff", units="in", width=7, height=5, res=300)
+plot_grid(plot_PCI_fam, 
+                     plot_TP_fam,
+                     rel_heights = c(1,1.3),
+                     nrow = 1,
+                     ncol = 2,
+                     align = 'h')
+dev.off()
+
+
+
+```
+
+
+
+
+
+#FIGURE 5: PCI & TP
+NOTE! NOTE! NOTE!
+These data form part of a PhD. Some chapters are still pending publication. For permission to use data contact amy.coghlan@utas.edu.au
+
+```{r, eval=TRUE, warning=FALSE, include=T, message=FALSE, echo=T}
+library(tidyverse)
+library(fishualize)
+load("rTP_all_liz.Rdata")
+
+fish_dat = rTP_all_liz
+
+glimpse(fish_dat)
+
+
+unique(fish_dat$Species)
+glimpse(fish_dat)
+
+unique(fish_dat$trophic_guild)
+
+fish_dat_pred = 
+  fish_dat 
+
+dim(fish_dat_pred)
+
+names(fish_dat_pred)
+fish_dat_pred <- within(fish_dat_pred, {   
+  TL <- NA # need to initialize variable
+  TL[TP_mode < 3] <- "<3"
+  TL[TP_mode >= 3 & TP_mode < 3.5] <- "3 - 3.5"
+  TL[TP_mode >= 3.5] <- ">3.5"
+   } )
+
+
+
+fish_dat_pred <- within(fish_dat_pred, {   
+  TL2 <- NA # need to initialize variable
+  TL2[TP_mode < 2.75] <- "<2.75"
+  TL2[TP_mode >= 2.75 & TP_mode < 3.25] <- "2.75 - 3.25"
+  TL2[TP_mode >= 3.25 & TP_mode < 3.75] <- "3.25 - 3.75"
+  TL2[TP_mode >= 3.75] <- ">3.75"
+   } )
+
+
+fish_dat_pred$TL3 = 
+  round(fish_dat_pred$TP_mode/0.5)*0.5
+
+
+
+tiff("Fig TP PCI cont.tiff", units="in", width=9, height=6.5, res=300)
+ggplot(fish_dat_pred,aes(TP_mode,PCI_mode,  label = Species, colour = PCI_mode))+
+  geom_point(size = 2)+
+    scale_colour_fish(option ="Coryphaena_hippurus", begin = 1, end = 0, direction = -1) +
+	theme_bw(base_size=14)+
+  labs(color='PCI') +
+	theme(panel.border=element_blank())+
+     xlab("SIA-derived Trophic Position") +
+     ylab("SIA-derived \nPathway Contribution Index (PCI)") +
+    theme(legend.position="right") +
+	theme(axis.line=element_line())
+
+dev.off()
+
+
+tiff("Fig TP PCI cat ALL SAMPLED.tiff", units="in", width=10, height=7, res=300)
+ggplot(fish_dat_pred,aes(TL3,PCI_mode, group = TL3))+
+    geom_hline(yintercept = 0.5, colour = "darkgrey", linetype = "dashed")+
+  geom_boxplot(width=0.1, alpha = 0, colour = "darkgrey") +
+  geom_jitter(height = 0, width = 0.1, alpha = 1, size = 2, aes(colour=PCI_mode)) +
+	theme_bw(base_size=14)+
+  ylim(0,1)+
+  labs(color='PCI') +
+	theme(panel.border=element_blank())+
+    scale_colour_fish(option ="Coryphaena_hippurus", begin = 1, end = 0, direction = -1) +
+     xlab("SIA-derived Trophic Position\n(rounded to the nearest .5)") +
+     ylab("SIA-derived \npathway contribution index (PCI)") +
+    theme(legend.position="right") +
+	theme(axis.line=element_line())
+dev.off()
+
+
+
+
+
+fish_dat_pred$TL3 = 
+  round(fish_dat_pred$TP_mode/0.5)*0.5
+
+fish_dat_pred <- within(fish_dat_pred, {   
+  PCIcut <- NA # need to initialize variable
+   PCIcut[PCI_mode < 0.5] <- "PCI < 0.5 & TP = "
+   PCIcut[PCI_mode >= 0.5] <- "PCI > 0.5 & TP = "
+    } )
+fish_dat_pred$mean_bio_preds = 
+   paste(fish_dat_pred$PCIcut, 
+         fish_dat_pred$TL3, 
+         sep = '')
+
+
+unique(fish_dat_pred)
+
+# distinct
+fish_dat_pred_list =
+  fish_dat_pred %>% 
+  distinct(Species, mean_bio_preds, .keep_all = F)
+
+save(fish_dat_pred_list, file = "fish_dat_pred_list.Rdata")
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# RLS
+## Step 1: Attributing SIA derived PCI to species on survey
+NOTE:
+- this will filter to only include species seen on Lizard Island surveys (so if we sampled species not seen on surveys they will not make it to the product)
+- this uses McCutchen only
+```{r, eval=T, warning=F, include=T, message=F, echo=F, comment='##', tidy=T}
+
+library(tidyverse)
+load('rTP_post.Rdata')
+names(rTP_post)
+names(rTP_post)[1] = "Region"
+names(rTP_post)[2] = "Species"
+names(rTP_post)[3] = "TP_lower_post"
+names(rTP_post)[4] = "TP_upper_post"
+names(rTP_post)[5] = "TP_median_post"
+names(rTP_post)[6] = "TP_post"
+names(rTP_post)[7] = "BPCI_lower_post"
+names(rTP_post)[8] = "BPCI_upper_post"
+names(rTP_post)[9] = "BPCI_median_post"
+names(rTP_post)[10] = "BPCI_post"
+names(rTP_post)[11] = "TDF_sp"
+
+unique(rTP_post$Region)
+# Liz only
+rTP_post = rTP_post %>% filter(Region == "1._Far_North_Queensland")
+rTP_post = subset(rTP_post, select = -Region)
+
+
+load('rTP_post_gen.Rdata')
+names(rTP_post_gen)
+names(rTP_post_gen)[1] = "Region"
+names(rTP_post_gen)[2] = "Genus"
+names(rTP_post_gen)[3] = "TP_lower_gen_post"
+names(rTP_post_gen)[4] = "TP_upper_gen_post"
+names(rTP_post_gen)[5] = "TP_median_gen_post"
+names(rTP_post_gen)[6] = "TP_mode_gen_post"
+names(rTP_post_gen)[7] = "BPCI_lower_gen_post"
+names(rTP_post_gen)[8] = "BPCI_upper_gen_post"
+names(rTP_post_gen)[9] = "BPCI_median_gen_post"
+names(rTP_post_gen)[10] = "BPCI_mode_gen_post"
+names(rTP_post_gen)[11] = "TDF_gen"
+
+rTP_post_gen = rTP_post_gen %>% filter(Region == "1._Far_North_Queensland")
+rTP_post_gen = subset(rTP_post_gen, select = -Region)
+
+load('rTP_post_fam.Rdata')
+rTP_post_fam = TP_pel_family
+names(rTP_post_fam)
+rTP_post_fam = subset(rTP_post_fam, select = -model)
+rTP_post_fam = subset(rTP_post_fam, select = -combined)
+names(rTP_post_fam)[1] = "Region"
+names(rTP_post_fam)[2] = "family"
+names(rTP_post_fam)[3] = "TP_lower_fam_post"
+names(rTP_post_fam)[4] = "TP_upper_fam_post"
+names(rTP_post_fam)[5] = "TP_median_fam_post"
+names(rTP_post_fam)[6] = "TP_mode_fam_post"
+names(rTP_post_fam)[7] = "BPCI_lower_fam_post"
+names(rTP_post_fam)[8] = "BPCI_upper_fam_post"
+names(rTP_post_fam)[9] = "BPCI_median_fam_post"
+names(rTP_post_fam)[10] = "BPCI_mode_fam_post"
+names(rTP_post_fam)[11] = "TDF_fam"
+
+rTP_post_fam = rTP_post_fam %>% filter(Region == "1._Far_North_Queensland")
+rTP_post_fam = subset(rTP_post_fam, select = -Region)
+
+
+
+load('rTP_mcc.Rdata')
+names(rTP_mcc)
+names(rTP_mcc)[1] = "Region"
+names(rTP_mcc)[2] = "Species"
+names(rTP_mcc)[3] = "TP_lower"
+names(rTP_mcc)[4] = "TP_upper"
+names(rTP_mcc)[5] = "TP_median"
+names(rTP_mcc)[6] = "TP"
+names(rTP_mcc)[7] = "BPCI_lower"
+names(rTP_mcc)[8] = "BPCI_upper"
+names(rTP_mcc)[9] = "BPCI_median"
+names(rTP_mcc)[10] = "BPCI"
+names(rTP_mcc)[11] = "TDF_sp"
+
+unique(rTP_mcc$Region)
+# Liz only
+rTP_mcc = rTP_mcc %>% filter(Region == "1._Far_North_Queensland")
+rTP_mcc = subset(rTP_mcc, select = -Region)
+
+
+load('rTP_mcc_gen.Rdata')
+names(rTP_mcc_gen)
+names(rTP_mcc_gen)[1] = "Region"
+names(rTP_mcc_gen)[2] = "Genus"
+names(rTP_mcc_gen)[3] = "TP_lower_gen"
+names(rTP_mcc_gen)[4] = "TP_upper_gen"
+names(rTP_mcc_gen)[5] = "TP_median_gen"
+names(rTP_mcc_gen)[6] = "TP_mode_gen"
+names(rTP_mcc_gen)[7] = "BPCI_lower_gen"
+names(rTP_mcc_gen)[8] = "BPCI_upper_gen"
+names(rTP_mcc_gen)[9] = "BPCI_median_gen"
+names(rTP_mcc_gen)[10] = "BPCI_mode_gen"
+names(rTP_mcc_gen)[11] = "TDF_gen"
+
+rTP_mcc_gen = rTP_mcc_gen %>% filter(Region == "1._Far_North_Queensland")
+rTP_mcc_gen = subset(rTP_mcc_gen, select = -Region)
+
+load('rTP_mcc_fam.Rdata')
+# rTP_mcc_fam = TP_pel_family
+names(rTP_mcc_fam)
+# rTP_mcc_fam = subset(rTP_mcc_fam, select = -model)
+# rTP_mcc_fam = subset(rTP_mcc_fam, select = -combined)
+names(rTP_mcc_fam)[1] = "Region"
+names(rTP_mcc_fam)[2] = "family"
+names(rTP_mcc_fam)[3] = "TP_lower_fam"
+names(rTP_mcc_fam)[4] = "TP_upper_fam"
+names(rTP_mcc_fam)[5] = "TP_median_fam"
+names(rTP_mcc_fam)[6] = "TP_mode_fam"
+names(rTP_mcc_fam)[7] = "BPCI_lower_fam"
+names(rTP_mcc_fam)[8] = "BPCI_upper_fam"
+names(rTP_mcc_fam)[9] = "BPCI_median_fam"
+names(rTP_mcc_fam)[10] = "BPCI_mode_fam"
+names(rTP_mcc_fam)[11] = "TDF_fam"
+
+rTP_mcc_fam = rTP_mcc_fam %>% filter(Region == "1._Far_North_Queensland")
+rTP_mcc_fam = subset(rTP_mcc_fam, select = -Region)
+
+
+
+
+
+
+
+
+
+
+
+
+
+load("RLS_survey_cleaned.Rdata")
+
+glimpse(RLS_survey_cleaned)
+colSums(is.na(RLS_survey_cleaned))
+
+# Let's get out unique species, then, those missing 
+RLS_sp_list = unique(RLS_survey_cleaned[c("Species", "family")])
+# check for duplicates
+duplicates <- RLS_sp_list |>
+  group_by_all() |>
+  filter(n() > 1) |>
+  ungroup()
+duplicate_counts <- RLS_sp_list |>
+  add_count(Species) |>
+  filter(n > 1) |>
+  distinct()
+duplicates
+
+
+# Now I'm gonna get a genus column
+RLS_sp_list$to_split = RLS_sp_list$Species
+RLS_sp_list = RLS_sp_list %>% separate(to_split, c("Genus","DELETE"), sep = "_")
+RLS_sp_list = subset(RLS_sp_list, select = -DELETE)
+
+
+
+# COME BACK TO THIS STEP IF I NEED TO GET COMMUNITY ESTIMATES USING POST instead of McCutchen.
+
+# Add species (we will just do this using McCutchen)
+RLS_sia = left_join(RLS_sp_list, rTP_mcc, by = "Species")
+# RLS_sia = left_join(RLS_sia, rTP_post, by = "Species")
+# Add Genus
+RLS_sia = left_join(RLS_sia, rTP_mcc_gen, by = "Genus")
+# RLS_sia = left_join(RLS_sia, rTP_post_gen, by = "Genus")
+# Add family
+RLS_sia = left_join(RLS_sia, rTP_mcc_fam, by = "family")
+# RLS_sia = left_join(RLS_sia, rTP_post_fam, by = "family")
+colSums(is.na(RLS_sia)) #we only have 45 species from this list covered by our sampling
+# dim(RLS_sia)
+glimpse(RLS_sia)
+
+
+
+
+# Create new column, prioritising species values.
+# We want to prioritise species, so we will create and fill the column with this first
+# record source
+RLS_sia$source=ifelse(is.na(RLS_sia$TP), NA, 'Species level')
+RLS_sia2 = RLS_sia %>% filter(!is.na(source))
+genus_lev = RLS_sia %>% filter(is.na(source))
+
+# GENUS 
+# Add next priority value
+# Mode
+genus_lev$TP[is.na(genus_lev$TP)] = 
+  genus_lev$TP_mode_gen[is.na(genus_lev$TP)]
+# Lower
+genus_lev$TP_lower[is.na(genus_lev$TP_lower)] = 
+  genus_lev$TP_lower_gen[is.na(genus_lev$TP_lower)]
+# Upper
+genus_lev$TP_upper[is.na(genus_lev$TP_upper)] = 
+  genus_lev$TP_upper_gen[is.na(genus_lev$TP_upper)]
+# Source
+
+# BPCI
+# Mode
+genus_lev$BPCI[is.na(genus_lev$BPCI)] = 
+  genus_lev$BPCI_mode_gen[is.na(genus_lev$BPCI)]
+# Lower
+genus_lev$BPCI_lower[is.na(genus_lev$BPCI_lower)] = 
+  genus_lev$BPCI_lower_gen[is.na(genus_lev$BPCI_lower)]
+# Upper
+genus_lev$BPCI_upper[is.na(genus_lev$BPCI_upper)] = 
+  genus_lev$BPCI_upper_gen[is.na(genus_lev$BPCI_upper)]
+# Indicat the source
+genus_lev2 = genus_lev %>% filter(!is.na(BPCI))
+genus_lev2$source = "Genus level"
+
+
+
+
+# family
+family_lev = genus_lev %>% filter(is.na(BPCI))
+# Add next priority value
+# Mode
+family_lev$TP[is.na(family_lev$TP)] = 
+  family_lev$TP_mode_fam[is.na(family_lev$TP)]
+# Lower
+family_lev$TP_lower[is.na(family_lev$TP_lower)] = 
+  family_lev$TP_lower_fam[is.na(family_lev$TP_lower)]
+# Upper
+family_lev$TP_upper[is.na(family_lev$TP_upper)] = 
+  family_lev$TP_upper_fam[is.na(family_lev$TP_upper)]
+
+# BPCI
+# Mode
+family_lev$BPCI[is.na(family_lev$BPCI)] = 
+  family_lev$BPCI_mode_fam[is.na(family_lev$BPCI)]
+# Lower
+family_lev$BPCI_lower[is.na(family_lev$BPCI_lower)] = 
+  family_lev$BPCI_lower_fam[is.na(family_lev$BPCI_lower)]
+# Upper
+family_lev$BPCI_upper[is.na(family_lev$BPCI_upper)] = 
+  family_lev$BPCI_upper_fam[is.na(family_lev$BPCI_upper)]
+# Indicat the source
+family_lev2 = family_lev %>% filter(!is.na(BPCI))
+family_lev2$source = "family level"
+no_dat = family_lev %>% filter(is.na(BPCI))
+# 
+RLS_higher_sig = rbind(RLS_sia2,genus_lev2,family_lev2,no_dat)
+colSums(is.na(RLS_higher_sig))
+
+
+# Check where an error in the left_join is coming from
+# Using dplyr to find duplicate values
+duplicates <- RLS_higher_sig |>
+  group_by_all() |>
+  filter(n() > 1) |>
+  ungroup()
+duplicate_counts <- RLS_higher_sig |>
+  add_count(Species) |>
+  filter(n > 1) |>
+  distinct()
+duplicates
+# These are all unique
+
+
+
+# PRODUCT:
+save(RLS_higher_sig, file = "RLS_higher_sig.Rdata")
+
+
+```
+
+
+
+## STEP 2: Filling in missing PCI
+```{R}
+# Library:
+library(tidyverse)
+# INPUT:
+load("RLS_traits_all.Rdata")
+load("RLS_higher_sig.Rdata")
+
+traits = RLS_traits_all
+glimpse(traits)
+
+# Using dplyr to find duplicate values
+duplicates <- traits |>
+  group_by_all() |>
+  filter(n() > 1) |>
+  ungroup()
+duplicate_counts <- traits |>
+  add_count(Species) |>
+  filter(n > 1) |>
+  distinct()
+duplicates
+dim(duplicates)
+length(unique(duplicates$Species))
+length(unique(traits$Species))
+
+# We want only the distinct dataframe:
+traits = distinct(traits, Species, .keep_all = TRUE)
+length(unique(traits$Species))
+# Check again now
+duplicates <- traits |>
+  group_by_all() |>
+  filter(n() > 1) |>
+  ungroup()
+duplicate_counts <- traits |>
+  add_count(Species) |>
+  filter(n > 1) |>
+  distinct()
+duplicates
+
+# Remove things that will create a clash or which we don't want
+traits = subset(traits, select = -c(Family,
+                                    Genus,
+                                    a,
+                                    b,
+                                    cf
+                                    ))
+
+# Combine our SIA values with the trait information
+RLS_pathway = left_join(RLS_higher_sig, traits, by = "Species")
+
+
+RLS_traits = traits
+glimpse(RLS_traits)
+save(RLS_traits, file = "RLS_traits.Rdata")
+
+
+
+
+
+# Let's see what is a herbivore
+check = RLS_pathway %>%filter(trophic_guild == "Primary_consumer")
+unique(sort(check$Genus))
+
+
+
+# How many unique species are there in this data?
+# unique(sort(RLS_pathway$Species))
+length(unique(sort(RLS_pathway$Species))) #(1,582 on 01-04-24)
+
+# Next, how many cases are there missing information?
+check = RLS_pathway %>% filter(is.na(BPCI))
+# unique(sort(check$Species))
+length(unique(sort(check$Species))) #That is about half (819 on 01-04-24)
+
+check = 
+  RLS_pathway %>% 
+  group_by(source) %>% 
+  summarise(n_distinct(Species))
+check
+
+
+# Before we start arbitrarily assigning things, create a new column, which is the PCI values, but including what we found for the herbivores. We will not overwrite the herbivore values in this column
+RLS_pathway$BPCI_w_herbSIA = RLS_pathway$BPCI
+# We will also need a secondary source column
+RLS_pathway$source_w_herbinc = RLS_pathway$source
+check = 
+  RLS_pathway %>% 
+  filter(trophic_guild == "Primary_consumer")
+check
+
+
+
+# Here we are arbitrarily assigning species listed as herbivores or excavators in the RLS data as "0" this is because we have some suspicions about the isotopic values we got for these species.
+RLS_pathway$BPCI = as.character(RLS_pathway$BPCI)
+RLS_pathway$BPCI[RLS_pathway$trophic_guild %in% c("Primary_consumer", "Excavator")] <- 0
+# Record the source as "assigned"
+RLS_pathway$source[RLS_pathway$trophic_guild %in% c("Primary_consumer", "Excavator")] <- "Assigned"
+check = RLS_pathway %>% filter(is.na(BPCI))
+# unique(sort(check$Species))
+length(unique(sort(check$Species))) #Now there are 709 species without a PCI
+check = 
+  RLS_pathway %>% 
+  group_by(source) %>% 
+  summarise(n_distinct(Species))
+check
+
+
+# Some that we didn't sample I am pretty sure are planktivores
+RLS_pathway$BPCI[RLS_pathway$Genus %in% c("Aioliops", "Pempheris", "Scombridae")] <- 1
+# Record the source as "assigned"
+RLS_pathway$source[RLS_pathway$Genus %in% c("Aioliops", "Pempheris", "Scombridae")] <- "Assigned"
+check = RLS_pathway %>%  filter(is.na(BPCI))
+length(unique(check$Species)) #Now there are 698 without PCI
+
+check = 
+  RLS_pathway %>% 
+  group_by(source) %>% 
+  summarise(n_distinct(Species))
+check
+
+# Make numeric
+RLS_pathway$BPCI = as.numeric(RLS_pathway$BPCI)
+summary(RLS_pathway$BPCI)
+
+
+
+
+# ----------------------------------------------------
+# INCLUDING HERBIVORE SIA DERVICED PCI
+# For our sdataset which is INCLUDING the values of the herbivores that we sampled:
+# How many species are missing here?
+check = RLS_pathway %>% filter(is.na(BPCI_w_herbSIA))
+length(unique(sort(check$Species))) # 819
+RLS_pathway$BPCI_w_herbSIA = as.character(RLS_pathway$BPCI_w_herbSIA)
+unique(RLS_pathway$source_w_herbinc)
+
+check = 
+  RLS_pathway %>% 
+  group_by(source_w_herbinc) %>% 
+  summarise(n_distinct(Species))
+check
+
+# First, deal with the easy ones
+RLS_pathway$BPCI_w_herbSIA[RLS_pathway$Genus %in% c("Aioliops", "Pempheris", "Scombridae")] <- 1
+RLS_pathway$source_w_herbinc[RLS_pathway$Genus %in% c("Aioliops", "Pempheris", "Scombridae")] <- "Assigned"
+check = RLS_pathway %>% filter(is.na(BPCI_w_herbSIA))
+length(unique(sort(check$Species))) # 808
+
+
+check = 
+  RLS_pathway %>% 
+  group_by(source_w_herbinc) %>% 
+  summarise(n_distinct(Species))
+check
+
+
+
+
+
+# We didnt get all the herbs, so let's split the dataset.
+# with herb data
+top = 
+  RLS_pathway %>% 
+  filter(!is.na(BPCI_w_herbSIA))
+
+check = 
+  top %>% 
+  group_by(source_w_herbinc) %>% 
+  summarise(n_distinct(Species))
+check
+
+
+
+
+
+# Fill in the herbs not covered by what we have done:
+bottom = 
+  RLS_pathway %>% 
+  filter(is.na(BPCI_w_herbSIA))
+
+bottom$BPCI_w_herbSIA[bottom$trophic_guild %in% c("Primary_consumer", "Excavator")] <- 0
+# Record the source as "assigned"
+bottom$source_w_herbinc[bottom$trophic_guild %in% c("Primary_consumer", "Excavator")] <- "Assigned"
+
+check = bottom %>% filter(is.na(BPCI_w_herbSIA))
+length(unique(sort(check$Species))) # 698
+
+check = 
+  bottom %>% 
+  group_by(source_w_herbinc) %>% 
+  summarise(n_distinct(Species))
+check
+
+
+
+
+
+
+
+
+
+# Recombine the two
+RLS_pathway = rbind(top, bottom)
+
+check = 
+  RLS_pathway %>% 
+  group_by(source) %>% 
+  summarise(n_distinct(Species))
+check
+
+check = 
+  RLS_pathway %>% 
+  group_by(source_w_herbinc) %>% 
+  summarise(n_distinct(Species))
+check
+
+
+
+
+#  Create a categorical variable
+RLS_pathway$pathway = cut(RLS_pathway$BPCI,c(-1,0.33,0.66,1))
+glimpse(RLS_pathway)
+unique(RLS_pathway$pathway)
+levels(RLS_pathway$pathway) = c("Benthic", "Both", "Pelagic")
+unique(sort(RLS_pathway$pathway))
+
+
+
+check = 
+  RLS_pathway %>% 
+  filter(trophic_guild == "Primary_consumer")
+check
+
+
+
+
+save(RLS_pathway, file = "RLS_pathway.Rdata")
+```
+
+
+
+
+## STEP 3: Apply species PCIs to surveys
+```{r, eval=T, warning=F, include=T, message=F, echo=F, comment='##', tidy=T}
+library(tidyverse)
+
+
+# Find & Replace Function
+gsr <- function(Source, Search, Replace) { 
+  if (length(Search) != length(Replace))     stop("Search and Replace Must Have Equal Number of Items\n")
+  Changed <- as.character(Source) 
+  for (i in 1:length(Search)) 
+  { 
+    cat("Replacing: ", Search[i], " With: ", Replace[i], "\n")
+    Changed <- replace(Changed, Changed == Search[i], Replace[i])   }
+  cat("\n")   
+  Changed 
+}
+
+load("RLS_pathway.Rdata")
+
+RLS_pathway = subset(RLS_pathway, select = c(
+  Species, family, Genus,
+  TP_lower, TP_upper, TP_median, TP,
+  BPCI_lower, BPCI_upper, BPCI_median, BPCI,
+  TP_lower_gen, TP_upper_gen, TP_median_gen, TP_mode_gen,
+  BPCI_lower_gen, BPCI_upper_gen, BPCI_median_gen, BPCI_mode_gen,
+  TP_lower_fam, TP_upper_fam, TP_median_fam, TP_mode_fam,
+  BPCI_lower_fam, BPCI_upper_fam, BPCI_median_fam, BPCI_mode_fam,
+  source,
+  pathway,
+  BPCI_w_herbSIA,
+  source_w_herbinc
+  ))
+
+
+names(RLS_pathway)
+unique(RLS_pathway$source)
+RLS_pathway_sampled =
+  RLS_pathway %>% 
+  filter(source == "Species level")
+unique(RLS_pathway_sampled$Species)
+
+
+sampled_list = 
+  RLS_pathway  %>% 
+  filter(source == "Species level")
+sampled_list = unique(sampled_list$Species)
+save(sampled_list, file = "sampled_list.Rdata")
+length(unique(sampled_list))
+
+
+
+
+RLS_pathway_sampled_w_herb =
+  RLS_pathway %>% 
+  filter(source_w_herbinc == "Species level")
+RLS_pathway_sampled_w_herb =unique(RLS_pathway_sampled_w_herb$Species)
+save(RLS_pathway_sampled_w_herb, file = "RLS_pathway_sampled_w_herb.Rdata")
+
+
+
+
+
+
+load("RLS_survey_cleaned.Rdata") #This is data later than 2007, anything missing size or biomass is cleaned out.
+names(RLS_survey_cleaned)
+
+sort(unique(RLS_survey_cleaned$family))
+check = 
+  RLS_survey_cleaned %>% 
+  filter(family == "")
+unique(check$Species)
+
+
+RLS_survey_cleaned = 
+  subset(RLS_survey_cleaned, select = c(Species,
+                                      family,
+                                      Genus,
+                                      survey_id,
+                                      year,
+                                      depth,
+                                      site_code,
+                                      lat,
+                                      long,
+                                      location_RLS,
+                                      ecoregion,
+                                      realm,
+                                      size_class,
+                                      N,
+                                      B,
+                                      Trophic_level,
+                                      RLS_trophic_group,
+                                      trophic_guild,
+                                      Water.column,
+                                      MaxLength,
+                                      Lmax_group,
+                                      a,
+                                      b,
+                                      cf,
+                                      location_sst,
+                                      meansst,
+                                      meansst_decade
+                                      ))
+
+
+
+
+# INCLUDE ONLY LIZARD ISLAND, REMOVE OTHER SURVEYS
+# Now, we only want RLS data for Lizard Island, our SIA values are only really applicable to here:
+RLS_survey_cleaned =  RLS_survey_cleaned %>% filter(long  >145.4 & long<145.6)
+RLS_survey_cleaned = RLS_survey_cleaned %>% filter(lat  < -14.6 & lat > -14.8)
+unique(RLS_survey_cleaned$site_code)
+length(unique(RLS_survey_cleaned$survey_id)) #42
+
+
+# BRING TRAITS
+# Combine RLS and pathway data
+load("morais_bell_2019.Rdata")
+names(morais_bell_2019)
+# Join all traits
+RLS_survey_cleaned = left_join(RLS_survey_cleaned, morais_bell_2019, by = c("Species"))
+
+
+
+# Join the BPCI data
+names(RLS_pathway)
+RLS_survey_cleaned = left_join(RLS_survey_cleaned,RLS_pathway, by = c("Species", "family", "Genus"))
+
+
+
+
+
+length(unique(RLS_survey_cleaned$Species))
+
+check = 
+  RLS_survey_cleaned %>% 
+  filter(!family %in% c("Dasyatidae"))
+
+
+length(unique(check$Species))
+
+
+# -----------------------------------------------------------
+# NEW JUST RENAME DATA TO MESS AROUND WITH IT FROM HERE
+RLS_ind = RLS_survey_cleaned
+names(RLS_ind)
+
+
+
+# What is missing PCI values?
+check = RLS_ind %>% filter(is.na(BPCI))
+sort(unique(check$family)) 
+
+# Let's remove sharks, rays, remoras
+# First create a subset to see how much biomass they attribute
+All_B_w_shark = sum(RLS_ind$B) #total biomass with these groups # 1432338 (01-04-24)
+All_B_w_shark
+# Subset this group
+sharks_etc = 
+  RLS_ind %>% 
+  filter(family %in% c("Dasyatidae"))
+sharks_etc = sum(sharks_etc$B)
+sharks_etc/All_B_w_shark*100 # 0.5%, half a percent
+
+
+# Now exclude them
+RLS_ind = 
+  RLS_ind %>% 
+  filter(!family %in% c("Dasyatidae"))
+
+All_B_start = sum(RLS_ind$B) #total biomass withput these groups # 1425185 (01-04-24)
+All_B_start
+
+check =
+  RLS_ind %>% 
+  filter(is.na(BPCI))
+summary(check$B)
+length(unique(check$Species))
+
+B_unkPCI = sum(check$B)
+B_unkPCI
+B_unkPCI/All_B_start*100
+
+
+
+# HERE WE ARE GOING TO REMOVE THE UNKNOWN SPECIES FROM FURTHER ANALYSES:
+# Why? Why keep them in, they will not contribute to our community level estimates
+
+RLS_ind = 
+  RLS_ind %>% 
+  filter(!is.na(BPCI))
+
+# New biomass that we are working with, note this is the total sampled biomass for which we could attribute a PCI
+sum(RLS_ind$B) #1371289 (01-04-24)
+
+
+
+# We are going to compare the amount of biomass attributed to the BPCI and trophic guild
+
+# estimate pelatigic contributions for the following groups
+
+
+unique(RLS_ind$trophic_guild)
+unique(RLS_ind$RLS_trophic_group)
+
+
+
+save(RLS_ind, file = "RLS_ind.Rdata")
+
+
+
+
+
+
+
+# ------------------------------------------------------
+# BIOMASS CONTRIBUTIONS
+load("RLS_ind.Rdata")
+
+
+
+# Total biomass, including for things that we do not assume PCI for:
+check =
+  RLS_ind %>% 
+  filter(is.na(B))
+check
+# Exclude these cases
+
+
+# Total biomass sampled across all species on all transects included in this dataset
+All_B = sum(RLS_ind$B) 
+All_B # 1371289 (excluding groups we could not derive a PCI for)
+
+check = RLS_ind %>% 
+  group_by(source) %>%  
+  summarise(B_sum = sum(B))
+check
+sum(check$B_sum) # 1371289
+check$prop_B = check$B_sum/All_B*100
+check
+sum(check$prop_B)
+
+check = 
+  RLS_ind %>% 
+  filter(source == "Assigned") %>% 
+  group_by(trophic_guild) %>% 
+  summarise(B_sum = sum(B))
+check$prop_B = check$B_sum/All_B*100
+check
+sum(check$prop_B)
+
+
+
+check# What about if we included herbivore SIAs?
+check = RLS_ind %>% 
+  group_by(source_w_herbinc) %>%  
+  summarise(B_sum = sum(B))
+check
+sum(check$B_sum) # 1371289
+check$prop_B = check$B_sum/All_B*100
+check
+sum(check$prop_B)
+
+
+check = 
+  RLS_ind %>% 
+  filter(source_w_herbinc == "Assigned") %>% 
+  group_by(trophic_guild) %>% 
+  summarise(B_sum = sum(B))
+check$prop_B = check$B_sum/All_B*100
+check
+sum(check$prop_B)
+
+
+
+
+# Lizard only
+
+# Lets get the proportion of biomass for different methods applied
+check = RLS_ind
+ALL_B = sum(check$B)
+ALL_B # 1432338 (01-04-24)
+# sum(check$N) # 101711(01-04-24)
+
+length(unique(check$Species)) # 271 (01-04-24)
+length(unique(check$year))
+
+
+B_dat = check %>% group_by(source_w_herbinc) %>% 
+  summarise(tot_B = sum(B))
+B_dat
+# Proportion of biomass by PIC value assignation. NA's we not assigned a PCI
+B_dat$tot_B/ALL_B*100
+
+
+check2 = RLS_ind
+
+check3 = 
+  check2 %>% 
+  filter(source_w_herbinc == "Species level") %>% 
+  group_by(trophic_guild) %>% 
+  summarise(tot_B = sum(B))
+check3
+check3$tot_B/ALL_B
+sum(check3$tot_B)/ALL_B
+
+
+check4 = 
+  check2 %>% 
+  filter(source_w_herbinc != "Species level") %>% 
+  group_by(source_w_herbinc) %>% 
+  summarise(tot_B = sum(B))
+check4
+check4$tot_B/ALL_B
+sum(check4$tot_B)/ALL_B*100
+
+
+
+# So we assigned ##% based on literature
+check5 =
+  check2 %>%
+  subset(source_w_herbinc  == "Assigned")%>% 
+  summarise(tot_B = sum(B))
+check5$tot_B/ALL_B*100
+
+
+
+
+load("fish_dat_pred_list.Rdata") #DOES INCLUDE HERBIVORES
+fish_dat_pred_list
+fish_dat_pred_list$Species = 
+    str_sub(fish_dat_pred_list$Species, end = -5)
+fish_dat_pred_list
+fish_dat_pred_list$Species <- gsub(" ", "_", fish_dat_pred_list$Species)
+fish_dat_pred_list
+
+check_pred = 
+  left_join(fish_dat_pred_list,
+            check2,
+            by = "Species")
+names(check_pred)
+
+unique(check_pred$Species)
+colSums(is.na(check_pred))
+
+
+
+
+check_predcheck = 
+  check_pred %>% 
+  group_by(mean_bio_preds) %>% 
+  summarise(n = n(),
+            tot_B = sum(B, na.rm = T),
+            B_prop = tot_B/ALL_B*100)
+check_predcheck
+sum(check_predcheck$B_prop)
+check_predcheck$B_prop2 = 
+    round(check_predcheck$B_prop/0.5)*0.5
+check_predcheck
+sum(check_predcheck$B_prop2)
+
+
+
+
+
+check$TL3 = 
+  round(check$TP/0.5)*0.5
+
+check <- within(check, {   
+  PCIcut <- NA # need to initialize variable
+   PCIcut[BPCI < 0.5] <- "PCI < 0.5 & TP = "
+   PCIcut[BPCI >= 0.5] <- "PCI > 0.5 & TP = "
+    } )
+check$mean_bio_preds = 
+   paste(check$PCIcut, 
+         check$TL3, 
+         sep = '')
+
+
+check_predcheck2 = 
+  check %>% 
+  group_by(mean_bio_preds) %>% 
+  summarise(n = n(),
+            tot_B = sum(B, na.rm = T),
+            B_prop = tot_B/ALL_B*100)
+check_predcheck2$B_prop0 =
+    round(check_predcheck2$B_prop, 0)
+check_predcheck2$B_prop1 =
+    round(check_predcheck2$B_prop,1)
+check_predcheck2$B_prop2 = 
+    round(check_predcheck2$B_prop/0.5)*0.5
+check_predcheck2
+
+
+
+
+check_predcheck2
+sum(check_predcheck2$B_prop)
+sum(check_predcheck2$B_prop0)
+sum(check_predcheck2$B_prop1)
+sum(check_predcheck2$B_prop2)
+
+# what about if all fish are grouped into these TP-PCI categories
+
+
+
+
+
+# -----------------------------------------
+# SPECIES  LEVEL
+
+# Step 1) remove the size_class categories that species have.
+# SPECIES LEVEL so I can then calculate what proportion of that species biomass is fed by pelagic (aka multiply the total biomass by the mean proportion that individual species rely on pelagic). Size class isn't important to us because we are using biomass (which incorporates this). We just want the species level. Note also that we do not have ontogenetic info regarding our species pelagic pathway use, so size class cannot be used really, and would be misleading
+names(RLS_ind)
+RLS_sp <- RLS_ind %>%
+  group_by(survey_id, ecoregion, realm, Species, year, site_code, long, lat, location_RLS) %>% 
+    reframe(
+             #Abundance
+             N_tot = sum(N, na.rm = T), #total individuals per species
+             # Biomass
+             B_tot = sum(B, na.rm = T), #Note the issue with this bias mentioned earlier
+             # SIA metrics
+             BPCI = BPCI,
+             BPCI_w_herbSIA = BPCI_w_herbSIA,
+             TP = TP,
+             source = source,
+             source_w_herbinc = source_w_herbinc,
+             # Abiotic traits
+             meansst_ann1 = mean(meansst, na.rm = T),
+             meansst_dec1 = mean(meansst_decade, na.rm = T))
+
+
+# Calculate the proportion of Biomass Pelagic 
+RLS_sp$B_BCPI_sp = RLS_sp$B_tot*RLS_sp$BPCI
+RLS_sp$BPCI_w_herbSIA = as.numeric(RLS_sp$BPCI_w_herbSIA)
+RLS_sp$BPCI_w_herbSIA_sp = RLS_sp$B_tot*RLS_sp$BPCI_w_herbSIA
+
+# Do the same for number
+RLS_sp$N_BCPI_sp = RLS_sp$N_tot*RLS_sp$BPCI
+
+
+# most detailed sp_size_class dataset
+save(RLS_sp, file="RLS_sp.Rdata")
+
+unique(RLS_sp$site_code)
+
+
+
+
+
+
+# -----------------------------------------
+# TRANSECT LEVEL
+RLS_trans <- RLS_sp %>%
+  group_by(survey_id, year, ecoregion, realm, site_code, long, lat, location_RLS) %>%
+    reframe(
+             #Abundance
+             N_tot = sum(N_tot, na.rm = T), # total ind per species
+             N_BCPI_comm = sum(N_BCPI_sp, na.rm = T),
+             
+             # Biomass
+             B_tot = sum(B_tot, na.rm = T),
+             B_BCPI_comm = sum(B_BCPI_sp, na.rm = T),
+             B_BPCI_w_herbSIA_comm = sum(BPCI_w_herbSIA_sp, na.rm = T),
+             BPCI_w_herbSIA_comm = sum(BPCI_w_herbSIA_sp, na.rm = T),
+             
+             # SIA metrics
+             BPCI_mean = mean(BPCI, na.rm = T),
+             BPCI_sd = sd(BPCI, na.rm = T), # Note, this error will come from the ind sp
+             TP_mean = mean(TP, na.rm = T),
+             TP_sd = sd(TP, na.rm = T), # Note, this error will come from the ind sp
+             )
+
+
+# Abundance proportion per transect
+RLS_trans$Nprop_BCPI = RLS_trans$N_BCPI_comm / RLS_trans$N_tot 
+# Biomass proportion per transect
+RLS_trans$Bprop_BCPI = RLS_trans$B_BCPI_comm / RLS_trans$B_tot 
+RLS_trans$Bprop_BPCI_w_herbSIA_sp = RLS_trans$B_BPCI_w_herbSIA_comm / RLS_trans$B_tot 
+
+
+names(RLS_sp)
+
+
+unique(RLS_trans$site_code)
+
+save(RLS_trans, file="RLS_trans.Rdata")
+
+
+load("RLS_sp.Rdata")
+load("sampled_list.Rdata")
+sampled_list
+load("RLS_pathway_sampled_w_herb.Rdata")
+RLS_pathway_sampled_w_herb
+
+
+sampled_only = 
+  # subset(RLS_sp, Species %in% sampled_list) # Just the species that we sampled (not herbs)
+  subset(RLS_sp, Species %in% RLS_pathway_sampled_w_herb) #Incl. herbs
+dim(RLS_sp)
+dim(sampled_only)
+
+
+RLS_trans_sampled <- sampled_only %>%
+  group_by(survey_id, year, ecoregion, realm, site_code, long, lat, location_RLS) %>%
+    reframe(
+             #Abundance
+             N_tot = sum(N_tot, na.rm = T), # total ind per species
+             N_BCPI_comm = sum(N_BCPI_sp, na.rm = T),
+             
+             # Biomass
+             B_tot = sum(B_tot, na.rm = T),
+             B_BCPI_comm = sum(B_BCPI_sp, na.rm = T),
+             B_BPCI_w_herbSIA_comm = sum(BPCI_w_herbSIA_sp, na.rm = T),
+             BPCI_w_herbSIA_comm = sum(BPCI_w_herbSIA_sp, na.rm = T),
+             
+             # SIA metrics
+             BPCI_mean = mean(BPCI, na.rm = T),
+             BPCI_sd = sd(BPCI, na.rm = T), # Note, this error will come from the ind sp
+             TP_mean = mean(TP, na.rm = T),
+             TP_sd = sd(TP, na.rm = T), # Note, this error will come from the ind sp
+             )
+
+# Abundance proportion per transect
+RLS_trans_sampled$Nprop_BCPI = RLS_trans_sampled$N_BCPI_comm / RLS_trans_sampled$N_tot 
+# Biomass proportion per transect
+RLS_trans_sampled$Bprop_BCPI = RLS_trans_sampled$B_BCPI_comm / RLS_trans_sampled$B_tot 
+RLS_trans_sampled$Bprop_BPCI_w_herbSIA_sp = RLS_trans_sampled$B_BPCI_w_herbSIA_comm / RLS_trans_sampled$B_tot 
+
+unique(RLS_trans_sampled$site_code)
+
+save(RLS_trans_sampled, file = "RLS_trans_sampled.Rdata")
+```
+
+
+
+
+
+
+# FIGURE 6: Community PCI use results
+NOTE! NOTE! NOTE!
+These data form part of a PhD. Some chapters are still pending publication. For permission to use data contact amy.coghlan@utas.edu.au
+
+```{r}
+library(tidyverse)
+library(plotly)
+# library(fishualize)
+
+
+# LOAD DATA
+load("RLS_trans_sampled.Rdata")
+load("RLS_trans.Rdata")
+
+
+
+glimpse(RLS_trans_sampled)
+glimpse(RLS_trans)
+
+Liz_dat = RLS_trans %>% filter(long  >145.4 & long<145.6)
+Liz_dat = Liz_dat %>% filter(lat  < -14.6 & lat > -14.8)
+Liz_dat1 = Liz_dat %>% subset(select = c(year,
+                                             survey_id,
+                                             site_code,
+                                         Bprop_BCPI,
+                                         Bprop_BPCI_w_herbSIA_sp
+                                         ))
+
+Liz_datl = gather(Liz_dat1, calc_method, proportion, Bprop_BCPI:Bprop_BPCI_w_herbSIA_sp, factor_key=TRUE)
+
+glimpse(Liz_datl)
+summary(Liz_datl)
+length(unique(Liz_datl$survey_id))
+summary(Liz_datl$proportion)
+
+
+
+Liz_datl %>% group_by(calc_method) %>% summarise(mean= mean(proportion),
+                                                 median = median(proportion))
+
+
+unique(Liz_datl$calc_method)
+glimpse(Liz_datl)
+colSums(is.na(Liz_datl))
+
+
+tiff("Fig 5 COMMUNITY RESULTS.tiff", units="in", width=4, height=5, res=300)
+ggplot(Liz_datl, aes(y = proportion, x = calc_method))+
+  geom_violin(aes(colour = calc_method), trim = F) +
+  geom_boxplot(width = 0.2)+
+    geom_point(position = position_jitter(seed = 1, width = 0.2), aes(colour = calc_method)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_color_manual(values = c("#00AFBB","#E7B800"))+
+   ylab("Proportion of community standing biomass\nattributed to the pelagic pathway") +
+    xlab("Method") +
+  scale_x_discrete(labels=c("Bprop_BCPI" = "All herbivore PCI set to 1", "Bprop_BPCI_w_herbSIA_sp" = "All SIA-derived PCI data used"))+
+  guides(colour="none") +
+  # scale_x_discrete(limits = positions) +
+  theme_bw()
+dev.off()
+
+
+
+Liz_datl$sample_status = "Sampled & inferred species"
+
+
+
+Liz_dat_sampled = RLS_trans_sampled %>% filter(long  >145.4 & long<145.6)
+Liz_dat_sampled = Liz_dat_sampled %>% filter(lat  < -14.6 & lat > -14.8)
+Liz_dat_sampled1 = Liz_dat_sampled %>% subset(select = c(year,
+                                             survey_id,
+                                             site_code,
+                                         Bprop_BCPI,
+                                         Bprop_BPCI_w_herbSIA_sp))
+
+
+
+Liz_dat_sampledl = gather(Liz_dat_sampled1, calc_method, proportion, Bprop_BCPI:Bprop_BPCI_w_herbSIA_sp, factor_key=TRUE)
+
+glimpse(Liz_dat_sampledl)
+summary(Liz_dat_sampledl)
+length(unique(Liz_dat_sampledl$survey_id))
+
+Liz_dat_sampledl %>% group_by(calc_method) %>% summarise(mean= mean(proportion),
+                                                 median = median(proportion))
+
+
+
+
+
+Liz_dat_sampledl$sample_status = "Sampled species only"
+
+
+
+Liz_dat_both = 
+  rbind(Liz_datl, 
+        Liz_dat_sampledl)
+
+unique(Liz_dat_both$calc_method)
+unique(Liz_dat_both$sample_status)
+
+Liz_dat_both_herbsinc = 
+  Liz_dat_both %>% 
+  filter(calc_method == "Bprop_BPCI_w_herbSIA_sp")
+
+
+positions <- c("Sampled species only", "Sampled & inferred species")
+
+tiff("Fig 5 SAMPLED OR INFFERED.tiff", units="in", width=4, height=5, res=300)
+ggplot(Liz_dat_both_herbsinc, aes(y = proportion, x = sample_status))+
+  geom_violin(aes(colour = sample_status), trim = F) +
+  geom_boxplot(width = 0.2)+
+    geom_point(position = position_jitter(seed = 1, width = 0.2), aes(colour = sample_status)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_color_manual(values = c("#00AFBB","#E7B800"))+
+   ylab("Proportion of community standing biomass\nattributed to the pelagic pathway") +
+    xlab("Method") +
+  guides(colour="none") +
+  # scale_x_discrete(limits = positions) +
+  theme_bw()
+dev.off()
+
+
+# Now get THREE on one plot to show effect on interp
+
+
+
+Liz_dat_sampled_w_herb = 
+  Liz_dat_both_herbsinc %>% 
+  filter(sample_status == "Sampled species only")
+
+Liz_dat_sampled_w_herb$calc_method = "Sampled species only"
+
+names(Liz_datl)
+names(Liz_dat_sampled_w_herb)
+
+all_three = rbind(Liz_datl, Liz_dat_sampled_w_herb)
+unique(all_three$calc_method)
+
+
+all_three %>%
+  group_by(calc_method) %>% 
+  summarise(mean = mean (proportion), 
+            sd = sd(proportion))
+
+unique(all_three$calc_method)
+calc_method_level <- c( "Bprop_BPCI_w_herbSIA_sp","Bprop_BCPI","Sampled species only")
+
+tiff("Fig 5 ALL OPTIONS.tiff", units="in", width=8, height=7, res=300)
+ggplot(all_three, aes(y = proportion, x = factor(calc_method, level=calc_method_level)))+
+  geom_violin(aes(colour = calc_method), trim = F) +
+  geom_boxplot(width = 0.2)+
+    geom_point(position = position_jitter(seed = 1, width = 0.2), aes(colour = calc_method)) +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_color_manual(values = c("#6694FF","#00AFBB","#E7B800"))+
+  # scale_color_manual(values = c("#00AFBB","#E7B800"))+
+   ylab("Proportion of community standing biomass\nattributed to the pelagic pathway") +
+    xlab("Method") +
+  scale_x_discrete(labels=c("Bprop_BCPI" = "Method 2:\nSensitivity test\n(all herbivores assigned a PCI of 0)",
+                            "Bprop_BPCI_w_herbSIA_sp" = "Method 1:\nMain test", 
+                            "Sampled species only" = "Method 3:\nSensitivity test\n(the subset of sampled species only)"))+
+  guides(colour="none") +
+  # scale_x_discrete(limits = positions) +
+  theme_bw()
+dev.off()
+
+
+```
+
+
+
+
+
+
